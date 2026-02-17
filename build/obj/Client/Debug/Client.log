@@ -1,0 +1,66 @@
+﻿  application.cpp
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\application.cpp(170,24): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\application.cpp(171,24): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\application.cpp(173,19): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\application.cpp(174,19): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\application.cpp(175,13): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\application.cpp(176,13): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+  camera.cpp
+  common.cpp
+  framebuffer.cpp
+  mesh.cpp
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\gl\mesh.cpp(21,42): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\gl\mesh.cpp(27,38): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\gl\mesh.cpp(69,31): warning C4267: 'argument': conversion from 'size_t' to 'GLuint', possible loss of data
+      C:\Dev\GitRepos\Voxel-Pollution\Client\src\gl\mesh.cpp(69,31):
+      the template instantiation context (the oldest one first) is
+          C:\Dev\GitRepos\Voxel-Pollution\Client\src\gl\mesh.cpp(99,5):
+          see reference to function template instantiation 'void yc::gl::Mesh::addBuffer<const float>(size_t,T *,size_t,GLuint,GLuint)' being compiled
+          with
+          [
+              T=const float
+          ]
+  
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\gl\mesh.cpp(74,46): warning C4267: 'argument': conversion from 'size_t' to 'GLint', possible loss of data
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\gl\mesh.cpp(74,36): warning C4267: 'argument': conversion from 'size_t' to 'GLuint', possible loss of data
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\gl\mesh.cpp(77,45): warning C4267: 'argument': conversion from 'size_t' to 'GLint', possible loss of data
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\gl\mesh.cpp(77,35): warning C4267: 'argument': conversion from 'size_t' to 'GLuint', possible loss of data
+  shader.cpp
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\gl\shader.cpp(86,47): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
+  texture.cpp
+  block_outline.cpp
+  block_vertex.cpp
+  crosshair.cpp
+  display.cpp
+  flora_vertex.cpp
+  skybox.cpp
+  game_scene.cpp
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\gui\game_scene.cpp(19,33): warning C4305: 'argument': truncation from 'double' to 'float'
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\gui\game_scene.cpp(39,33): warning C4305: 'argument': truncation from 'double' to 'float'
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\gui\game_scene.cpp(56,41): warning C4305: 'argument': truncation from 'double' to 'float'
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\gui\game_scene.cpp(83,33): warning C4305: 'argument': truncation from 'double' to 'float'
+  gui.cpp
+  pause_scene.cpp
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\gui\pause_scene.cpp(17,62): warning C4305: 'argument': truncation from 'double' to 'float'
+  main.cpp
+  persistence.cpp
+  player.cpp
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\player.cpp(9,26): warning C4305: 'initializing': truncation from 'double' to 'float'
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\player.cpp(135,52): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
+  resource.cpp
+  Generating Code...
+  Compiling...
+  block.cpp
+  chunk.cpp
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\world\chunk.cpp(265,16): warning C4244: 'return': conversion from 'double' to 'int32_t', possible loss of data
+  pollution_system.cpp
+  smoke_visualizer.cpp
+  wind_system.cpp
+  world.cpp
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\world\world.cpp(409,18): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+  world_generator.cpp
+  Generating Code...
+LINK : warning LNK4098: defaultlib 'MSVCRT' conflicts with use of other libs; use /NODEFAULTLIB:library
+  Client.vcxproj -> C:\Dev\GitRepos\Voxel-Pollution\build\bin\Debug\Client.exe
+  'pwsh.exe' is not recognized as an internal or external command,
+  operable program or batch file.
