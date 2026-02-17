@@ -86,4 +86,13 @@ void Shader::setUArray(const std::string& name, const std::vector<uint32_t>& val
     glUniform1uiv(getUniform(name), value.size(), value.data());
 }
 
+void Shader::setVec4(const std::string& name, glm::vec4 value) {
+    glUniform4f(getUniform(name), value.x, value.y, value.z, value.w);
+}
+
+void Shader::setVec4Array(const std::string& name, const std::vector<glm::vec4>& value) {
+    if (value.empty()) return;
+    glUniform4fv(getUniform(name), static_cast<GLsizei>(value.size()), glm::value_ptr(value[0]));
+}
+
 }

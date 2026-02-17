@@ -206,6 +206,10 @@
     <ClInclude Include="src\world\world.h" />
     <ClInclude Include="src\world\world_generator.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="resources\shaders\smoke_volume.frag" />
+    <None Include="resources\shaders\smoke_volume.vert" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

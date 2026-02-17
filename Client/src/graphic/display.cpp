@@ -1,19 +1,86 @@
 #include <glad/glad.h>
 #include "graphic/display.h"
 #include "application.h"
+#include "resource.h"
 #include <iostream>
+#include <algorithm>
+#include <glm/gtc/matrix_transform.hpp>
 
 namespace yc::graphic {
 
 float quadVertices[] = {
-	// positions		// uv
-	-1.0f, -1.0f, 0.0f,	0.0f, 0.0f,
-	 1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-	 1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
-	 1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
-	-1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
-	-1.0f, -1.0f, 0.0f, 0.0f, 0.0f
+    // positions        // uv
+    -1.0f, -1.0f, 0.0f,  0.0f, 0.0f,
+     1.0f, -1.0f, 0.0f,  1.0f, 0.0f,
+     1.0f,  1.0f, 0.0f,  1.0f, 1.0f,
+     1.0f,  1.0f, 0.0f,  1.0f, 1.0f,
+    -1.0f,  1.0f, 0.0f,  0.0f, 1.0f,
+    -1.0f, -1.0f, 0.0f,  0.0f, 0.0f
 };
+
+float cubeVertices[] = {
+    // positions
+    -0.5f,-0.5f,-0.5f,  0.5f,-0.5f,-0.5f,  0.5f, 0.5f,-0.5f,
+     0.5f, 0.5f,-0.5f, -0.5f, 0.5f,-0.5f, -0.5f,-0.5f,-0.5f,
+
+    -0.5f,-0.5f, 0.5f,  0.5f,-0.5f, 0.5f,  0.5f, 0.5f, 0.5f,
+     0.5f, 0.5f, 0.5f, -0.5f, 0.5f, 0.5f, -0.5f,-0.5f, 0.5f,
+
+    -0.5f, 0.5f, 0.5f, -0.5f, 0.5f,-0.5f, -0.5f,-0.5f,-0.5f,
+    -0.5f,-0.5f,-0.5f, -0.5f,-0.5f, 0.5f, -0.5f, 0.5f, 0.5f,
+
+     0.5f, 0.5f, 0.5f,  0.5f, 0.5f,-0.5f,  0.5f,-0.5f,-0.5f,
+     0.5f,-0.5f,-0.5f,  0.5f,-0.5f, 0.5f,  0.5f, 0.5f, 0.5f,
+
+    -0.5f,-0.5f,-0.5f,  0.5f,-0.5f,-0.5f,  0.5f,-0.5f, 0.5f,
+     0.5f,-0.5f, 0.5f, -0.5f,-0.5f, 0.5f, -0.5f,-0.5f,-0.5f,
+
+    -0.5f, 0.5f,-0.5f,  0.5f, 0.5f,-0.5f,  0.5f, 0.5f, 0.5f,
+     0.5f, 0.5f, 0.5f, -0.5f, 0.5f, 0.5f, -0.5f, 0.5f,-0.5f
+};
+
+static bool ComputeSmokeBounds(
+    const std::vector<yc::world::ChimneySource>& sources,
+    const yc::world::WindState& wind,
+    glm::vec3& outMin,
+    glm::vec3& outMax) {
+
+    if (sources.empty() || wind.speed <= 1e-6) {
+        return false;
+    }
+
+    const glm::dvec2 dir = wind.unitDirXZ();
+    const glm::dvec2 perp(-dir.y, dir.x);
+
+    const float maxDownwind = 100.0f;
+    const float maxCrosswind = 30.0f;
+    const float maxVertical = 30.0f;
+
+    bool initialized = false;
+
+    for (const auto& src : sources) {
+        const glm::dvec3 base = src.worldPos + glm::dvec3(0.0, src.height, 0.0);
+        const glm::dvec3 end = base + glm::dvec3(dir.x * maxDownwind, 0.0, dir.y * maxDownwind);
+        const glm::dvec3 cross = glm::dvec3(perp.x * maxCrosswind, 0.0, perp.y * maxCrosswind);
+
+        glm::dvec3 localMin = glm::min(base, end);
+        glm::dvec3 localMax = glm::max(base, end);
+
+        localMin -= glm::dvec3(std::abs(cross.x), maxVertical, std::abs(cross.z));
+        localMax += glm::dvec3(std::abs(cross.x), maxVertical, std::abs(cross.z));
+
+        if (!initialized) {
+            outMin = glm::vec3(localMin);
+            outMax = glm::vec3(localMax);
+            initialized = true;
+        } else {
+            outMin = glm::min(outMin, glm::vec3(localMin));
+            outMax = glm::max(outMax, glm::vec3(localMax));
+        }
+    }
+
+    return initialized;
+}
 
 Display::Display():
     lineMode(false)
@@ -25,7 +92,7 @@ void Display::init() {
     blockOutline.init();
 
     glGenFramebuffers(1, &opaqueFBO);
-	glGenFramebuffers(1, &transparentFBO);
+    glGenFramebuffers(1, &transparentFBO);
 
     glGenTextures(1, &opaqueTexture);
 	glBindTexture(GL_TEXTURE_2D, opaqueTexture);
@@ -81,6 +148,77 @@ void Display::init() {
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
 	glBindVertexArray(0);
+
+    glGenVertexArrays(1, &cubeVAO);
+    glGenBuffers(1, &cubeVBO);
+    glBindVertexArray(cubeVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glBindVertexArray(0);
+}
+
+void Display::renderSmokeVolume(yc::Camera* camera, yc::world::World* world) {
+    const auto& sources = world->getChimneyEmitters();
+    const auto& wind = world->getWindState();
+
+    glm::vec3 boxMin{};
+    glm::vec3 boxMax{};
+    if (!ComputeSmokeBounds(sources, wind, boxMin, boxMax)) {
+        return;
+    }
+
+    constexpr int MaxSources = 32;
+    const int count = std::min(static_cast<int>(sources.size()), MaxSources);
+
+    std::vector<glm::vec4> posH(MaxSources, glm::vec4(0.0f));
+    std::vector<glm::vec4> params(MaxSources, glm::vec4(0.0f));
+
+    for (int i = 0; i < count; ++i) {
+        const auto& src = sources[i];
+        posH[i] = glm::vec4(static_cast<float>(src.worldPos.x),
+                            static_cast<float>(src.worldPos.y),
+                            static_cast<float>(src.worldPos.z),
+                            static_cast<float>(src.height));
+        params[i] = glm::vec4(static_cast<float>(src.exitVelocity),
+                              static_cast<float>(src.radius),
+                              0.0f,
+                              0.0f);
+    }
+
+    const glm::vec3 center = 0.5f * (boxMin + boxMax);
+    const glm::vec3 size = boxMax - boxMin;
+
+    glm::mat4 model(1.0f);
+    model = glm::translate(model, center);
+    model = glm::scale(model, size);
+
+    auto& shader = yc::Resource::SmokeVolumeShader;
+    shader.use();
+    shader.setMat4("projection_view", camera->getProjectionViewMatrix());
+    shader.setMat4("model", model);
+    shader.setVec3("uCameraPos", camera->getPosition());
+    shader.setVec3("uBoxMin", boxMin);
+    shader.setVec3("uBoxMax", boxMax);
+
+    const glm::dvec2 dir = wind.unitDirXZ();
+    shader.setFloat("uWindSpeed", static_cast<float>(wind.speed));
+    shader.setVec2("uWindDirXZ", glm::vec2(static_cast<float>(dir.x), static_cast<float>(dir.y)));
+
+    shader.setInt("uSourceCount", count);
+    shader.setVec4Array("uSourcePosH", posH);
+    shader.setVec4Array("uSourceParams", params);
+
+    shader.setInt("uStepCount", 64);
+    shader.setFloat("uDensityScale", 0.45f);
+    shader.setVec3("uSmokeColor", glm::vec3(0.45f, 0.45f, 0.45f));
+    shader.setFloat("zNear", 0.1f);
+    shader.setFloat("zFar", 5000.0f);
+
+    glBindVertexArray(cubeVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    glBindVertexArray(0);
 }
 
 void Display::prepareFrame() {
@@ -142,6 +280,7 @@ void Display::drawFrame(yc::Player* player, yc::world::World* world) {
 	glClearBufferfv(GL_COLOR, 1, &oneFillerVec[0]);
 
     world->renderTransparent(player->getCamera());
+    renderSmokeVolume(player->getCamera(), world);
 
     glDepthFunc(GL_ALWAYS);
 	glEnable(GL_BLEND);

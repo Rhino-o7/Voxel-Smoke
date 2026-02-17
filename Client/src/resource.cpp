@@ -11,6 +11,7 @@ yc::gl::Shader Resource::SkyBoxShader;
 yc::gl::Shader Resource::BlockOutlineShader;
 yc::gl::Shader Resource::CrossHairShader;
 yc::gl::Shader Resource::CompositeShader;
+yc::gl::Shader Resource::SmokeVolumeShader;
 
 yc::gl::Texture Resource::GameTexure;
 yc::gl::Texture Resource::CrossHairTexture;
@@ -32,6 +33,7 @@ void Resource::Load() {
     Resource::BlockOutlineShader.loadFromFile("block_outline.vert", "block_outline.frag");
     Resource::CrossHairShader.loadFromFile("crosshair.vert", "crosshair.frag");
     Resource::CompositeShader.loadFromFile("composite.vert", "composite.frag");
+    Resource::SmokeVolumeShader.loadFromFile("smoke_volume.vert", "smoke_volume.frag");
     
 
     stbi_set_flip_vertically_on_load(true);

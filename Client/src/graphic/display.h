@@ -28,6 +28,7 @@ public:
     void toggleLineMode();
 
 private:
+    void renderSmokeVolume(yc::Camera* camera, yc::world::World* world);
 
     glm::vec3 clearColor = { 0.2f, 0.3f, 0.3f };
 
@@ -39,6 +40,7 @@ private:
     unsigned int accumTexture;
     unsigned int revealTexture;
     unsigned int quadVAO, quadVBO;
+    unsigned int cubeVAO, cubeVBO;
 
     SkyBox skybox;
     BlockOutline blockOutline;

@@ -189,4 +189,8 @@
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="resources\shaders\smoke_volume.vert" />
+    <None Include="resources\shaders\smoke_volume.frag" />
+  </ItemGroup>
 </Project>

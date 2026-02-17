@@ -77,6 +77,9 @@ public:
 
     void clearAllSmokeBlocksInLoadedChunks();
 
+    const WindState& getWindState() const { return wind.current(); }
+    const std::vector<ChimneySource>& getChimneyEmitters() const { return chimneyEmitters; }
+
 private:
     std::unordered_map<glm::ivec2, std::shared_ptr<Chunk>, HashChunkCoord> chunks;
     std::queue<std::shared_ptr<Chunk>> shouldBeUnloadedChunks;
