@@ -3,9 +3,11 @@
 uniform sampler2D game_texture;
 uniform float zFar = 5000.0f;
 uniform float zNear = 0.1f;
+uniform float uExposureScale;
 
 flat in uvec2 tex_coord;
 in vec2 vert_pos;
+flat in float vExposure;
 
 layout (location = 0) out vec4 accum;
 layout (location = 1) out float reveal;
@@ -27,6 +29,10 @@ void main() {
     coord.y += (vert_pos.y) * sprite_size;
 
     vec4 color = texture(game_texture, coord);
+
+    float darken = clamp(vExposure * uExposureScale, 0.0, 0.8);
+    color.rgb *= (1.0 - darken);
+
     float w = weight(gl_FragCoord.z, color.w);
 
     if (color.w == 1) {

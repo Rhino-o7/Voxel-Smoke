@@ -34,6 +34,8 @@ void Player::init() {
     inventory = {
         yc::world::BlockType::GRASS_BLOCK,
         yc::world::BlockType::DIRT,
+        yc::world::BlockType::CROP,
+		yc::world::BlockType::GLASS,
        
         yc::world::BlockType::CHIMNEY,
 		yc::world::BlockType::AIR_SMOKE

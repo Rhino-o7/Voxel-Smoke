@@ -81,7 +81,7 @@ void GUI::render() {
     ImGui::SetNextWindowPos(ImVec2(20.0f, 20.0f), ImGuiCond_Always);
     ImGui::Begin("HUD", nullptr, hudFlags);
 
-    float healthPercent = 0.75f; // TODO: wire to player health
+    float healthPercent = gameManager ? gameManager->getCropHealthPercent() : 1.0f;
 
     ImGui::Text("Health");
     ImVec2 barSize(200.0f, 20.0f);

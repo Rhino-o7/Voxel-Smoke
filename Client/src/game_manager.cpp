@@ -1,6 +1,8 @@
 #include "game_manager.h"
 
 #include <algorithm>
+#include <vector>
+#include <unordered_set>
 
 namespace yc {
 
@@ -15,12 +17,15 @@ void GameManager::init(yc::world::World* world, Player* player) {
     if (world) {
         smokeViz = std::make_unique<yc::world::SmokeVisualizer>(world);
         world->setWindState(currentWindState);
+        world->setCropExposureMap(&cropExposureByBlock);
     }
 }
 
 void GameManager::update(double realDtSec) {
+    double simDtSec = 0.0;
+
     if (simulationRunning) {
-        clock.tick(realDtSec);
+        simDtSec = clock.tick(realDtSec);
         wind.update(clock.getSimTimeSec());
         currentWindState = wind.current();
     }
@@ -30,6 +35,8 @@ void GameManager::update(double realDtSec) {
     if (world) {
         world->setWindState(currentWindState);
     }
+
+    updateCropExposure(simDtSec);
 }
 
 void GameManager::pauseTime() {
@@ -77,6 +84,7 @@ bool GameManager::loadWindCsv(const std::string& path) {
     }  
     return loaded;
 }
+
 GameManager::TimeOfDay GameManager::getTimeOfDay() const
 {
     return {
@@ -105,6 +113,111 @@ double GameManager::getPollutionAtWorld(const yc::world::WorldPos& worldPos) con
 double GameManager::getPollutionAtBlock(const yc::world::BlockPos& blockPos) const {
     if (!world) return 0.0;
     return getPollutionAtWorld(yc::world::World::getBlockToWorldCoord(blockPos));
+}
+
+void GameManager::registerCropBlock(const yc::world::BlockPos& blockPos) {
+    cropExposureByBlock.emplace(blockPos, 0.0);
+}
+
+void GameManager::unregisterCropBlock(const yc::world::BlockPos& blockPos) {
+    cropExposureByBlock.erase(blockPos);
+}
+
+double GameManager::getCropExposureAtBlock(const yc::world::BlockPos& blockPos) const {
+    auto it = cropExposureByBlock.find(blockPos);
+    return (it != cropExposureByBlock.end()) ? it->second : 0.0;
+}
+
+float GameManager::getCropHealthPercent() const {
+    if (cropExposureByBlock.empty()) return 1.0f;
+
+    const double scale = std::max(1e-9, static_cast<double>(exposureScale));
+    double sum = 0.0;
+
+    for (const auto& [blockPos, exposure] : cropExposureByBlock) {
+        const double darken = std::clamp(exposure * scale, 0.0, 1.0);
+        sum += darken;
+    }
+
+    const double avgDarken = sum / static_cast<double>(cropExposureByBlock.size());
+    return static_cast<float>(std::clamp(1.0 - avgDarken, 0.0, 1.0));
+}
+
+void GameManager::updateCropExposure(double simDtSec) {
+    if (!world || simDtSec <= 0.0 || cropExposureByBlock.empty()) return;
+
+    const auto& sources = world->getChimneyEmitters();
+    if (sources.empty()) return;
+
+    yc::world::PollutionSystem ps;
+    ps.setWind(currentWindState);
+
+    std::vector<yc::world::BlockPos> toRemove;
+    std::unordered_set<glm::ivec2, yc::world::World::HashChunkCoord> dirtyChunks;
+
+    for (auto& [blockPos, exposure] : cropExposureByBlock) {
+        const auto blockData = world->getBlockDataIfLoadedAt(blockPos);
+
+        if (blockData.getType() == yc::world::BlockType::NONE) {
+            continue;
+        }
+
+        if (blockData.getType() != yc::world::BlockType::CROP) {
+            toRemove.push_back(blockPos);
+            continue;
+        }
+
+        const auto worldPos = yc::world::World::getBlockToWorldCoord(blockPos);
+
+        double total = 0.0;
+        for (const auto& src : sources) {
+            ps.setSource(src);
+            total += ps.concentrationAt(worldPos);
+        }
+
+        exposure += total * simDtSec;
+        dirtyChunks.insert(yc::world::World::GetChunkCoordOf(blockPos));
+    }
+
+    for (const auto& pos : toRemove) {
+        cropExposureByBlock.erase(pos);
+    }
+
+    for (const auto& chunkCoord : dirtyChunks) {
+        if (auto chunk = world->getChunkIfLoadedAt(chunkCoord)) {
+            chunk->updateCropExposureBuffers([this](const glm::ivec3& worldCoord) {
+                return static_cast<float>(getCropExposureAtBlock(worldCoord));
+            });
+        }
+    }
+}
+
+void GameManager::applySettings(const Settings& settings) {
+    clock.setTimeScale(settings.game.timeScale);
+    temperatureC = settings.game.temperatureC;
+    exposureScale = settings.exposure.exposureScale;
+
+    chimneySettings.height = settings.chimney.height;
+    chimneySettings.radius = settings.chimney.radius;
+    chimneySettings.exitVelocity = settings.chimney.exitVelocity;
+
+    if (smokeViz) {
+        yc::world::SmokeVisualizer::Settings s{};
+        s.updateIntervalSec = settings.smoke.updateIntervalSec;
+        s.maxDownwindBlocks = settings.smoke.maxDownwindBlocks;
+        s.maxCrosswindRadiusBlocks = settings.smoke.maxCrosswindRadiusBlocks;
+        s.maxVerticalRadiusBlocks = settings.smoke.maxVerticalRadiusBlocks;
+        s.maxBlocksPerUpdate = settings.smoke.maxBlocksPerUpdate;
+        s.concentrationThreshold = settings.smoke.concentrationThreshold;
+        s.patchiness = settings.smoke.patchiness;
+        smokeViz->setSettings(s);
+    }
+
+    if (settings.game.startSimulationRunning && !simulationRunning) {
+        startSimulation();
+    } else if (!settings.game.startSimulationRunning && simulationRunning) {
+        stopSimulation();
+    }
 }
 
 }

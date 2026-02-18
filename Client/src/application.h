@@ -12,6 +12,7 @@
 #include "graphic/crosshair.h"
 #include "gui/gui.h"
 #include "game_manager.h"
+#include "settings.h"
 
 namespace yc {
 
@@ -53,6 +54,8 @@ private:
     static float deltaTime;
 
     bool paused;
+
+    Settings settings{};
 
     GameManager gameManager;
 

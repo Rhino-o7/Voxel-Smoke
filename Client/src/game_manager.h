@@ -10,6 +10,7 @@
 #include "world/wind_system.h"
 #include "world/pollution_system.h"
 #include "world/smoke_visualizer.h"
+#include "settings.h"
 
 namespace yc {
 
@@ -30,6 +31,8 @@ public:
     GameManager();
 
     void init(yc::world::World* world, Player* player);
+
+    void applySettings(const Settings& settings);
 
     void update(double realDtSec);
 
@@ -60,7 +63,15 @@ public:
     double getPollutionAtWorld(const yc::world::WorldPos& worldPos) const;
     double getPollutionAtBlock(const yc::world::BlockPos& blockPos) const;
 
+    void registerCropBlock(const yc::world::BlockPos& blockPos);
+    void unregisterCropBlock(const yc::world::BlockPos& blockPos);
+    double getCropExposureAtBlock(const yc::world::BlockPos& blockPos) const;
+    const yc::world::CropExposureMap& getCropExposureByBlock() const { return cropExposureByBlock; }
+    float getCropHealthPercent() const;
+
 private:
+    void updateCropExposure(double simDtSec);
+
     yc::world::World* world = nullptr;
     Player* player = nullptr;
 
@@ -76,6 +87,8 @@ private:
     bool simulationRunning = false;
     bool resumeOnUnpause = false;
     yc::world::WindState currentWindState{};
+    yc::world::CropExposureMap cropExposureByBlock;
+    float exposureScale = 0.01f;
 };
 
 }

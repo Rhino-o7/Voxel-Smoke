@@ -64,12 +64,15 @@ Application::Application(int32_t width, int32_t height, const std::string& title
     
     world = new yc::world::World(persistence);
     world->init();
+    world->setSettings(settings.world);
+    world->setExposureScale(settings.exposure.exposureScale);
 
     player = new Player(50.0f, world);
     player->init();
 
     gameManager.init(world, player);
-    gameManager.loadWindCsv("resources/simulation/wind_test.csv");
+    gameManager.applySettings(settings);
+    gameManager.loadWindCsv(settings.game.windCsvPath);
 
     display.init();
 
@@ -205,16 +208,23 @@ void mouseButtonCallBack(GLFWwindow* window, int button, int action, int mods) {
                     );
                     return;
                 }
+                const auto placedPos = app->player->getSelectingBlock() + app->player->getSelectingFace();
                 app->world->setBlockDataIfLoadedAt(
-                    app->player->getSelectingBlock() + app->player->getSelectingFace(),
+                    placedPos,
                     { app->player->getCurrentBlockType() }
                 );
+
+                if (app->player->getCurrentBlockType() == yc::world::BlockType::CROP) {
+                    app->gameManager.registerCropBlock(placedPos);
+                }
             }
         }
 
         if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
             if (app->player->isSelectingBlock()) {
-                app->world->destroyBlockIfLoaded(app->player->getSelectingBlock());
+                const auto removedPos = app->player->getSelectingBlock();
+                app->world->destroyBlockIfLoaded(removedPos);
+                app->gameManager.unregisterCropBlock(removedPos);
             }
         }
     }

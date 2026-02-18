@@ -197,6 +197,7 @@
     <ClInclude Include="src\persistence.h" />
     <ClInclude Include="src\player.h" />
     <ClInclude Include="src\resource.h" />
+    <ClInclude Include="src\settings.h" />
     <ClInclude Include="src\util\aabb.h" />
     <ClInclude Include="src\util\file.h" />
     <ClInclude Include="src\util\math.h" />

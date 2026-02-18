@@ -52,7 +52,9 @@ bool BlockData::isTransparent() const {
     return blockType == BlockType::AIR
         || blockType == BlockType::GLASS
         || blockType == BlockType::AIR_SMOKE
-        || blockType == BlockType::WATER;
+        || blockType == BlockType::WATER
+	    || blockType == BlockType::LEAF
+	    || blockType == BlockType::CROP;
 }
 
 bool BlockData::isFlora() const {
@@ -95,6 +97,8 @@ std::string GetBlockName(BlockType blockType) {
 			return "Chimney";
 		case BlockType::AIR_SMOKE:
 			return "Air Smoke";
+        case BlockType::CROP:
+            return "Crop";
         default:
             return "None";
     }

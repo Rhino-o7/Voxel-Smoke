@@ -2,6 +2,8 @@
 
 #include "world/block.h"
 #include "gl/mesh.h"
+#include <unordered_map>
+#include <functional>
 
 
 namespace yc::world {
@@ -47,9 +49,16 @@ public:
 
     void setBlockData(const glm::ivec3& coord, BlockData blockData);
 
-private:
+    void updateCropExposureBuffers(const std::function<float(const glm::ivec3&)>& exposureSampler);
 
-    BlockData blocks[Length][Height][Width]; // 0.5Mb wtf?
+private:
+    struct CropMeshSpan {
+        glm::ivec3 localCoord{};
+        uint32_t start = 0;
+        uint32_t count = 0;
+    };
+
+    BlockData blocks[Length][Height][Width];
     std::shared_ptr<yc::gl::Mesh> opaqueMesh;
     std::shared_ptr<yc::gl::Mesh> transparentMesh; 
     std::shared_ptr<yc::gl::Mesh> floraMesh;
@@ -58,6 +67,8 @@ private:
 
     glm::ivec2 coord;
     World* world;
+    std::unordered_map<uint32_t, CropMeshSpan> cropOpaqueMeshSpans;
+    std::unordered_map<uint32_t, CropMeshSpan> cropTransparentMeshSpans;
     
 };
 

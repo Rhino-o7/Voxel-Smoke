@@ -28,6 +28,7 @@ public:
     void updateStaticBuffer(size_t index, const uint32_t* data, size_t dataSize);
     void addStaticBuffer(size_t size, const uint32_t* data, size_t dataSize);
     void addStaticBuffer(size_t size, const std::vector<uint32_t>& data);
+    void updateStaticBufferRange(size_t index, size_t elementOffset, const float* data, size_t elementCount);
 
 private:
     GLuint vao;

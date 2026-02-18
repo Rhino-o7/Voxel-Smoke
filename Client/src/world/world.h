@@ -12,11 +12,23 @@
 #include "player.h"
 #include "world/wind_system.h"
 #include "world/pollution_system.h"
+#include "settings.h"
 
 namespace yc::world {
 
 using WorldPos = glm::dvec3;
 using BlockPos = glm::ivec3;
+
+struct BlockPosHash {
+    size_t operator() (const BlockPos& coord) const noexcept {
+        size_t h = std::hash<int32_t>{}(coord.x);
+        h ^= std::hash<int32_t>{}(coord.y) + 0x9e3779b9 + (h << 6) + (h >> 2);
+        h ^= std::hash<int32_t>{}(coord.z) + 0x9e3779b9 + (h << 6) + (h >> 2);
+        return h;
+    }
+};
+
+using CropExposureMap = std::unordered_map<BlockPos, double, BlockPosHash>;
 
 class World {
 public:
@@ -32,7 +44,7 @@ public:
 
     static glm::ivec2 GetChunkCoordOf(const glm::ivec3& coord);
 
-    World() : generator(0), persistence(nullptr) {}
+    World() : generator(0), persistence(nullptr), exposureScale(0.0f) {}
     World(Persistence* persistence);
 
     void init();
@@ -74,6 +86,15 @@ public:
     const WindState& getWindState() const { return windState; }
     const std::vector<ChimneySource>& getChimneyEmitters() const { return chimneyEmitters; }
 
+    void setCropExposureMap(const CropExposureMap* map);
+    double getCropExposureAtBlock(const BlockPos& blockPos) const;
+
+    void setSettings(const yc::Settings::WorldSettings& value) { settings = value; }
+    const yc::Settings::WorldSettings& getSettings() const { return settings; }
+
+    void setExposureScale(float value) { exposureScale = value; }
+    float getExposureScale() const { return exposureScale; }
+
 private:
     std::unordered_map<glm::ivec2, std::shared_ptr<Chunk>, HashChunkCoord> chunks;
     std::queue<std::shared_ptr<Chunk>> shouldBeUnloadedChunks;
@@ -84,6 +105,11 @@ private:
     WindState windState{};
 
     std::vector<ChimneySource> chimneyEmitters;
+
+    const CropExposureMap* cropExposureMap = nullptr;
+
+    yc::Settings::WorldSettings settings{};
+    float exposureScale;
 };
 
 }

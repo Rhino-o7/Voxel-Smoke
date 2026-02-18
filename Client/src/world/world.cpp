@@ -37,9 +37,9 @@ void World::update(yc::Camera* camera) {
         camera->getPosition().z / Chunk::Width,
     };
 
-    const int32_t viewDistance = 24;
-    const int32_t maxUnloadChunkPerFrame = 4;
-    const int32_t maxChunksLoadPerFrame = 2;
+    const int32_t viewDistance = settings.viewDistance;
+    const int32_t maxUnloadChunkPerFrame = settings.maxUnloadChunkPerFrame;
+    const int32_t maxChunksLoadPerFrame = settings.maxChunksLoadPerFrame;
 
     int32_t unloadedChunkCount = 0;
     for (const auto& [chunkCoord, chunk]: this->chunks) {
@@ -122,11 +122,23 @@ bool World::isChunkLoaded(const glm::ivec2& chunkCoord) {
     return iter != this->chunks.end();
 }
 
+void World::setCropExposureMap(const CropExposureMap* map) {
+    cropExposureMap = map;
+}
+
+double World::getCropExposureAtBlock(const BlockPos& blockPos) const {
+    if (!cropExposureMap) return 0.0;
+
+    auto it = cropExposureMap->find(blockPos);
+    return (it != cropExposureMap->end()) ? it->second : 0.0;
+}
+
 void World::renderOpaque(Camera* camera) {
     yc::Resource::GameTexure.bind();
     
     yc::Resource::OpaqueShader.use();
     yc::Resource::OpaqueShader.setMat4("projection_view", camera->getProjectionViewMatrix());
+    yc::Resource::OpaqueShader.setFloat("uExposureScale", exposureScale);
 
     for (const auto& [coord, chunk]: this->chunks) {
         auto model = glm::translate(glm::mat4(1.0f), glm::vec3(coord.x * Chunk::Length, 0, coord.y * Chunk::Width));
@@ -140,10 +152,11 @@ void World::renderTransparent(Camera* camera) {
 
     yc:: Resource::TransparentShader.use();
     yc:: Resource::TransparentShader.setMat4("projection_view", camera->getProjectionViewMatrix());
+    yc:: Resource::TransparentShader.setFloat("uExposureScale", exposureScale);
 
     for (const auto& [coord, chunk]: this->chunks) {
         auto model = glm::translate(glm::mat4(1.0f), glm::vec3(coord.x * Chunk::Length, 0, coord.y * Chunk::Width));
-        yc::Resource::TransparentShader.setMat4("model", model);
+        yc:: Resource::TransparentShader.setMat4("model", model);
         chunk->renderTransparent();
     }
 }

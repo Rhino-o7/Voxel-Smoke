@@ -17,6 +17,12 @@ const std::array<glm::ivec3, 6> directionsToCheck = {{
     { 0, -1, 0 }, // bottom
 }};
 
+static uint32_t PackLocalCoord(const glm::ivec3& coord) {
+    return (coord.x & 0x1F)
+        | ((coord.y & 0x1FF) << 5)
+        | ((coord.z & 0x1F) << 14);
+}
+
 Chunk::Chunk():
     needToBuildMesh(false),
     floraMesh(nullptr),
@@ -62,6 +68,12 @@ void Chunk::buildMesh() {
     static uint32_t chunkOpaqueIndices[500000];
     static uint32_t chunkTransparentVertices[300000];
     static uint32_t chunkTransparentIndices[500000];
+    static float chunkOpaqueExposure[300000];
+    static float chunkTransparentExposure[300000];
+
+    //6cropMeshSpans.clear();
+    cropOpaqueMeshSpans.clear();
+    cropTransparentMeshSpans.clear();
 
     auto northChunk = this->world->getChunkIfLoadedAt({ this->coord.x, this->coord.y - 1 });
     auto southChunk = this->world->getChunkIfLoadedAt({ this->coord.x, this->coord.y + 1 });
@@ -103,6 +115,16 @@ void Chunk::buildMesh() {
 
         if (blockType == BlockType::AIR) continue;
 
+        float exposure = 0.0f;
+        if (blockType == BlockType::CROP) {
+            const glm::ivec3 worldBlock = getWorldCoordOfBlock({ x, y, z });
+            exposure = static_cast<float>(world->getCropExposureAtBlock(worldBlock));
+        }
+
+        const bool trackCrop = (blockType == BlockType::CROP);
+        const uint32_t cropOpaqueStart = static_cast<uint32_t>(chunkOpaqueVerticesSize);
+        const uint32_t cropTransparentStart = static_cast<uint32_t>(chunkTransparentVerticesSize);
+
         for (auto& direction: directionsToCheck) {
             const glm::ivec3 coordToCheck { x+direction[0], y+direction[1], z+direction[2] };
 
@@ -138,9 +160,13 @@ void Chunk::buildMesh() {
                 vertex.setBlockType(blockType, direction);
 
                 if (block.isOpaque()) {
-                    chunkOpaqueVertices[chunkOpaqueVerticesSize++] = vertex.getData();
+                    chunkOpaqueVertices[chunkOpaqueVerticesSize] = vertex.getData();
+                    chunkOpaqueExposure[chunkOpaqueVerticesSize] = exposure;
+                    ++chunkOpaqueVerticesSize;
                 } else {
-                    chunkTransparentVertices[chunkTransparentVerticesSize++] = vertex.getData();
+                    chunkTransparentVertices[chunkTransparentVerticesSize] = vertex.getData();
+                    chunkTransparentExposure[chunkTransparentVerticesSize] = exposure;
+                    ++chunkTransparentVerticesSize;
                 }
             }
 
@@ -160,6 +186,16 @@ void Chunk::buildMesh() {
                 chunkTransparentIndices[chunkTransparentIndicesSize++] = transparentId + 3;
             }
         }
+
+        if (trackCrop) {
+            if (block.isOpaque()) {
+                const uint32_t count = static_cast<uint32_t>(chunkOpaqueVerticesSize) - cropOpaqueStart;
+                cropOpaqueMeshSpans[PackLocalCoord({ x, y, z })] = { { x, y, z }, cropOpaqueStart, count };
+            } else {
+                const uint32_t count = static_cast<uint32_t>(chunkTransparentVerticesSize) - cropTransparentStart;
+                cropTransparentMeshSpans[PackLocalCoord({ x, y, z })] = { { x, y, z }, cropTransparentStart, count };
+            }
+        }
     }
 
     // Opaque
@@ -169,12 +205,14 @@ void Chunk::buildMesh() {
         opaqueMesh->bind();
         opaqueMesh->updateIndices(&chunkOpaqueIndices[0], chunkOpaqueIndicesSize);
         opaqueMesh->updateStaticBuffer(0, &chunkOpaqueVertices[0], chunkOpaqueVerticesSize);
+        opaqueMesh->updateStaticBuffer(1, &chunkOpaqueExposure[0], chunkOpaqueVerticesSize);
     } else {
         opaqueMesh = std::make_shared<yc::gl::Mesh>();
         opaqueMesh->init();
         opaqueMesh->bind();
         opaqueMesh->addIndices(&chunkOpaqueIndices[0], chunkOpaqueIndicesSize);
         opaqueMesh->addStaticBuffer(1, &chunkOpaqueVertices[0], chunkOpaqueVerticesSize);
+        opaqueMesh->addStaticBuffer(1, &chunkOpaqueExposure[0], chunkOpaqueVerticesSize);
     }
 
     // Transparent
@@ -184,12 +222,14 @@ void Chunk::buildMesh() {
         transparentMesh->bind();
         transparentMesh->updateIndices(&chunkTransparentIndices[0], chunkTransparentIndicesSize);
         transparentMesh->updateStaticBuffer(0, &chunkTransparentVertices[0], chunkTransparentVerticesSize);
+        transparentMesh->updateStaticBuffer(1, &chunkTransparentExposure[0], chunkTransparentVerticesSize);
     } else {
         transparentMesh = std::make_shared<yc::gl::Mesh>();
         transparentMesh->init();
         transparentMesh->bind();
         transparentMesh->addIndices(&chunkTransparentIndices[0], chunkTransparentIndicesSize);
         transparentMesh->addStaticBuffer(1, &chunkTransparentVertices[0], chunkTransparentVerticesSize);
+        transparentMesh->addStaticBuffer(1, &chunkTransparentExposure[0], chunkTransparentVerticesSize);
     }
 
     // Flora
@@ -267,6 +307,32 @@ int32_t Chunk::DistanceTo(const glm::ivec2& chunkCoord, const glm::ivec2& coord)
         *(chunkCoord.x-coord.x)
         + (chunkCoord.y-coord.y)
         *(chunkCoord.y-coord.y));
+}
+
+void Chunk::updateCropExposureBuffers(const std::function<float(const glm::ivec3&)>& exposureSampler) {
+    static std::vector<float> exposureData;
+
+    if (opaqueMesh && !cropOpaqueMeshSpans.empty()) {
+        opaqueMesh->bind();
+        for (const auto& [key, span] : cropOpaqueMeshSpans) {
+            if (span.count == 0) continue;
+            const glm::ivec3 worldCoord = getWorldCoordOfBlock(span.localCoord);
+            const float exposure = exposureSampler(worldCoord);
+            exposureData.assign(span.count, exposure);
+            opaqueMesh->updateStaticBufferRange(1, span.start, exposureData.data(), span.count);
+        }
+    }
+
+    if (transparentMesh && !cropTransparentMeshSpans.empty()) {
+        transparentMesh->bind();
+        for (const auto& [key, span] : cropTransparentMeshSpans) {
+            if (span.count == 0) continue;
+            const glm::ivec3 worldCoord = getWorldCoordOfBlock(span.localCoord);
+            const float exposure = exposureSampler(worldCoord);
+            exposureData.assign(span.count, exposure);
+            transparentMesh->updateStaticBufferRange(1, span.start, exposureData.data(), span.count);
+        }
+    }
 }
 
 }

@@ -59,6 +59,7 @@ void Resource::Load() {
     Resource::BlockIcons[world::BlockType::YELLOW_FLOWER].loadFromFile("./resources/icons/yellow_flower.png");
     Resource::BlockIcons[world::BlockType::GRASS].loadFromFile("./resources/icons/grass.png");
     Resource::BlockIcons[world::BlockType::WATER].loadFromFile("./resources/icons/water.png");
+    Resource::BlockIcons[world::BlockType::CROP].loadFromFile("./resources/icons/grass.png");
 
     //temp
 	Resource::BlockIcons[world::BlockType::CHIMNEY].loadFromFile("./resources/icons/stone.png");

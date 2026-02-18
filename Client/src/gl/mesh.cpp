@@ -127,6 +127,11 @@ void Mesh::updateStaticBuffer(size_t index, const std::vector<uint32_t>& data){
     updateStaticBuffer(index, data.data(), data.size());
 }
 
+void Mesh::updateStaticBufferRange(size_t index, size_t elementOffset, const float* data, size_t elementCount){
+    glBindBuffer(GL_ARRAY_BUFFER, this->buffers[index]);
+    glBufferSubData(GL_ARRAY_BUFFER, elementOffset * sizeof(float), elementCount * sizeof(float), data);
+}
+
 Mesh::~Mesh() {
     glDeleteVertexArrays(1, &this->vao);
     for (GLuint vbo: this->buffers) {

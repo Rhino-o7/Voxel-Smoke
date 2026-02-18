@@ -25,6 +25,7 @@ enum class BlockType {
 	CHIMNEY,
     AIR_SMOKE,
     NONE,
+    CROP
 };
 
 enum class BlockFaceDirection {
