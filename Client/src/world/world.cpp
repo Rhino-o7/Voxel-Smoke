@@ -15,18 +15,6 @@ static float Clamp01(float v) {
     return std::max(0.0f, std::min(1.0f, v));
 }
 
-bool World::loadWindCsv(const std::string& path) {
-    return wind.loadFromCsvFile(path);
-}
-
-double World::getPollutionAtWorld(const WorldPos& worldPos) const {
-    return getPollutionAtWorldFromSources(worldPos);
-}
-
-double World::getPollutionAtBlock(const BlockPos& blockPos) const {
-    return getPollutionAtWorld(getBlockToWorldCoord(blockPos));
-}
-
 void World::addChimneyEmitter(const BlockPos& baseBlockCoord, double height, double exitVelocity, double radius) {
     ChimneySource src{};
     src.worldPos = getBlockToWorldCoord(baseBlockCoord);
@@ -36,68 +24,14 @@ void World::addChimneyEmitter(const BlockPos& baseBlockCoord, double height, dou
     chimneyEmitters.push_back(src);
 }
 
-World::World(Persistence* persistence) : generator(0), persistence(persistence), smokeViz(this) {}
+World::World(Persistence* persistence) : generator(0), persistence(persistence) {}
 
 void World::init()
 {
-	loadWindCsv("resources/simulation/wind_test.csv");
-
-    
     clearAllSmokeBlocksInLoadedChunks();
 }
 
 void World::update(yc::Camera* camera) {
-    static double last = glfwGetTime();
-    const double now = glfwGetTime();
-    const double dt = now - last;
-    last = now;
-
-    simTimeSec += dt;
-
-    wind.update(simTimeSec);
-    pollution.setWind(wind.current());
-
-    // Provide a sampler that can later point to ANY model implementation.
-    auto sampler = [this](const glm::dvec3& p) -> double {
-        // Current model: sum Gaussian plumes from all emitters
-        double total = 0.0;
-
-        PollutionSystem ps;
-        ps.setWind(wind.current());
-
-        for (const auto& src : chimneyEmitters) {
-            ps.setSource(src);
-            total += ps.concentrationAt(p);
-        }
-
-        return total;
-    };
-
-    // 1) instantaneous model (Gaussian for now)
-    auto instantaneous = [this](const glm::dvec3& p) -> double {
-        double total = 0.0;
-        PollutionSystem ps;
-        ps.setWind(wind.current());
-        for (const auto& src : chimneyEmitters) {
-            ps.setSource(src);
-            total += ps.concentrationAt(p);
-        }
-        return total;
-    };
-
-    // 2) update time-evolving field
-    /*pollutionField.setWind(wind.current());
-    pollutionField.setSources(chimneyEmitters);
-    pollutionField.setInstantModelSampler(instantaneous);
-    pollutionField.update(static_cast<float>(dt));*/
-
-    // 3) visuals sample the field (NOT the instantaneous Gaussian)
-    /*auto fieldSampler = [this](const glm::dvec3& p) -> double {
-        return pollutionField.sample(p);
-    };
-
-    smokeViz.update(simTimeSec, wind.current(), chimneyEmitters, fieldSampler);*/
-
     glm::ivec2 cameraChunkCoord = {
         camera->getPosition().x / Chunk::Length,
         camera->getPosition().z / Chunk::Width,
@@ -464,24 +398,10 @@ World::RayCastResult World::raycastCheck(const glm::vec3& position, const glm::v
     return result;
 }
 
-double World::getPollutionAtWorldFromSources(const WorldPos& worldPos) const {
-    // Sum contributions from all chimneys. This becomes the "single source of truth".
-    double total = 0.0;
-
-    PollutionSystem ps;
-    ps.setWind(wind.current());
-
-    for (const auto& src : chimneyEmitters) {
-        ps.setSource(src);
-        total += ps.concentrationAt(worldPos);
-    }
-
-    return total;
-}
 
 void World::clearAllSmokeBlocksInLoadedChunks() {
     for (const auto& [chunkCoord, chunk] : chunks) {
-        // chunk origin in world block coords
+        // chunk origin in world coords
         const int baseX = chunkCoord.x * Chunk::Length;
         const int baseZ = chunkCoord.y * Chunk::Width;
 

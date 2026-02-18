@@ -5,7 +5,7 @@
 #include <GLFW/glfw3.h>
 #include "gui/game_scene.h"
 #include "gui/pause_scene.h"
-#include "world/world.h"
+#include "game_manager.h"
 
 namespace yc::gui {
 
@@ -19,7 +19,7 @@ public:
 
     void init(GLFWwindow* window);
 
-    void update(yc::Application* application, yc::world::World* world, Player* player);
+    void update(yc::Application* application, Player* player, yc::GameManager* gameManager);
 
     void render();
 
@@ -31,6 +31,7 @@ private:
 
     std::shared_ptr<GameScene> gameScene;
     std::shared_ptr<PauseScene> pauseScene;
+    yc::GameManager* gameManager = nullptr;
 };
 
 }

@@ -1,5 +1,6 @@
 C:\Dev\GitRepos\Voxel-Pollution\Client\src\application.cpp;C:\Dev\GitRepos\Voxel-Pollution\build\obj\Client\Debug\application.obj
 C:\Dev\GitRepos\Voxel-Pollution\Client\src\camera.cpp;C:\Dev\GitRepos\Voxel-Pollution\build\obj\Client\Debug\camera.obj
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\game_manager.cpp;C:\Dev\GitRepos\Voxel-Pollution\build\obj\Client\Debug\game_manager.obj
 C:\Dev\GitRepos\Voxel-Pollution\Client\src\gl\common.cpp;C:\Dev\GitRepos\Voxel-Pollution\build\obj\Client\Debug\common.obj
 C:\Dev\GitRepos\Voxel-Pollution\Client\src\gl\framebuffer.cpp;C:\Dev\GitRepos\Voxel-Pollution\build\obj\Client\Debug\framebuffer.obj
 C:\Dev\GitRepos\Voxel-Pollution\Client\src\gl\mesh.cpp;C:\Dev\GitRepos\Voxel-Pollution\build\obj\Client\Debug\mesh.obj

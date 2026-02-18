@@ -11,7 +11,7 @@
 #include "world/world.h"
 #include "graphic/crosshair.h"
 #include "gui/gui.h"
-#include "game_clock.h"
+#include "game_manager.h"
 
 namespace yc {
 
@@ -35,15 +35,13 @@ public:
 
     Player* getPlayer();
 
+    GameManager& getGameManager() { return gameManager; }
+    const GameManager& getGameManager() const { return gameManager; }
+
     void terminate();
 
-    // CHANGED SEMANTICS: pause time, not the whole game simulation/render loop
     void pauseGame();
     void resumeGame();
-
-    // NEW: optional API for UI/gameplay
-    GameClock& getClock() { return clock; }
-    const GameClock& getClock() const { return clock; }
 
 private:
     friend void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -56,7 +54,7 @@ private:
 
     bool paused;
 
-    GameClock clock;
+    GameManager gameManager;
 
     graphic::Display display;
     gui::GUI gui;

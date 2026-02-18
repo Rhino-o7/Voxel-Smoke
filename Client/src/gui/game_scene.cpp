@@ -5,9 +5,9 @@
 
 namespace yc::gui {
 
-GameScene::GameScene(Player* player, yc::world::World* world) :
+GameScene::GameScene(Player* player, yc::GameManager* gameManager) :
     player(player),
-    world(world) {
+    gameManager(gameManager) {
 }
 
 void GameScene::render() {
@@ -28,7 +28,7 @@ void GameScene::render() {
     // Hover pollution at selected block
     if (player->isSelectingBlock()) {
         const yc::world::BlockPos b = player->getSelectingBlock();
-        const double c = world ? world->getPollutionAtBlock(b) : 0.0;
+        const double c = gameManager ? gameManager->getPollutionAtBlock(b) : 0.0;
         ImGui::Text("Pollution: %.6f", c);
     } else {
         ImGui::Text("Pollution: (none)");

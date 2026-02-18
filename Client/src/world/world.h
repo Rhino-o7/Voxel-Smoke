@@ -12,8 +12,6 @@
 #include "player.h"
 #include "world/wind_system.h"
 #include "world/pollution_system.h"
-#include "world/smoke_visualizer.h"
-//#include "world/pollution_field_cache.h"
 
 namespace yc::world {
 
@@ -34,7 +32,7 @@ public:
 
     static glm::ivec2 GetChunkCoordOf(const glm::ivec3& coord);
 
-    World() : generator(0), persistence(nullptr), smokeViz(this) {}
+    World() : generator(0), persistence(nullptr) {}
     World(Persistence* persistence);
 
     void init();
@@ -48,11 +46,6 @@ public:
 
     static BlockPos getWorldtoBlockCoord(const WorldPos& worldCoord);
     static WorldPos getBlockToWorldCoord(const BlockPos& blockCoord);
-
-    double getPollutionAtWorld(const WorldPos& worldPos) const;
-    double getPollutionAtBlock(const BlockPos& blockPos) const;
-
-    bool loadWindCsv(const std::string& path);
 
     bool setBlockDataIfLoadedAt(const glm::ivec3& coord, const BlockData& blockData);
     bool destroyBlockIfLoaded(const glm::ivec3& coord);
@@ -77,7 +70,8 @@ public:
 
     void clearAllSmokeBlocksInLoadedChunks();
 
-    const WindState& getWindState() const { return wind.current(); }
+    void setWindState(const WindState& state) { windState = state; }
+    const WindState& getWindState() const { return windState; }
     const std::vector<ChimneySource>& getChimneyEmitters() const { return chimneyEmitters; }
 
 private:
@@ -87,18 +81,9 @@ private:
     WorldGenerator generator;
     Persistence* persistence;
 
-    double simTimeSec = 0.0;
-
-    WindSystem wind;
-    PollutionSystem pollution;
+    WindState windState{};
 
     std::vector<ChimneySource> chimneyEmitters;
-
-    SmokeVisualizer smokeViz;
-
-    //PollutionFieldCache pollutionField;
-
-    double getPollutionAtWorldFromSources(const WorldPos& worldPos) const;
 };
 
 }

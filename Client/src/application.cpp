@@ -68,6 +68,9 @@ Application::Application(int32_t width, int32_t height, const std::string& title
     player = new Player(50.0f, world);
     player->init();
 
+    gameManager.init(world, player);
+    gameManager.loadWindCsv("resources/simulation/wind_test.csv");
+
     display.init();
 
     // set icon
@@ -94,12 +97,8 @@ void Application::process() {
     // Keep existing render dt (used for FPS display / movement baseline)
     Application::deltaTime = static_cast<float>(realDt);
 
-    // Advance simulation clock (scaled, can be paused)
-    const double simDt = clock.tick(realDt);
-    const double simTime = clock.getSimTimeSec();
+    gameManager.update(realDt);
 
-    // Player input/movement: keep running even when time is paused (per request)
-    // If you want movement frozen too, gate these on clock.isPaused().
     if (!paused) {
         if (glfwGetKey(window, GLFW_KEY_F5) == GLFW_PRESS) {
             world->reloadChunks();
@@ -120,7 +119,7 @@ void Application::process() {
         world->update(player->getCamera());
     }
 
-    gui.update(this, world, player);
+    gui.update(this, player, &gameManager);
 
     display.drawFrame(player, world);
 
@@ -144,7 +143,11 @@ Player* Application::getPlayer() {
 
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     Application* app = (Application*) glfwGetWindowUserPointer(window);
-    
+
+    if (action == GLFW_PRESS && key == GLFW_KEY_T) {
+        app->gameManager.toggleSimulation();
+    }
+
     if (!app->paused) {
         if (glfwGetKey(app->window, GLFW_KEY_F3) == GLFW_PRESS) {
             app->display.toggleLineMode();
@@ -195,12 +198,10 @@ void mouseButtonCallBack(GLFWwindow* window, int button, int action, int mods) {
         if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
             if (app->player->isSelectingBlock()) {
 				if (app->player->getCurrentBlockType() == yc::world::BlockType::CHIMNEY) {
-                    const double exitVelocity = 10.0; // TODO: make configurable via GUI later
-                    const int height = 20;
-					const int radius = 5;
+                    const auto& settings = app->gameManager.getChimneySettings();
                     app->world->spawnChimneyAt(
                         app->player->getSelectingBlock() + app->player->getSelectingFace(),
-                        height, radius, exitVelocity
+                        settings.height, settings.radius, settings.exitVelocity
                     );
                     return;
                 }
@@ -251,14 +252,14 @@ float Application::GetDeltaTime() {
 
 void Application::pauseGame() {
     paused = true;
-    clock.setPaused(true); // NEW: pause time
+    gameManager.pauseTime();
     gui.pause(this);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 }
 
 void Application::resumeGame() {
     paused = false;
-    clock.setPaused(false); // NEW: resume time
+    gameManager.resumeTime();
     gui.resume();
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); 
 }

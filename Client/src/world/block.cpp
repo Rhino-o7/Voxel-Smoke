@@ -51,8 +51,7 @@ bool BlockData::isTransparent() const {
     BlockType blockType = getType();
     return blockType == BlockType::AIR
         || blockType == BlockType::GLASS
-        || blockType == BlockType::LEAF
-		|| blockType == BlockType::AIR_SMOKE
+        || blockType == BlockType::AIR_SMOKE
         || blockType == BlockType::WATER;
 }
 

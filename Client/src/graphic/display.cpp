@@ -288,7 +288,7 @@ void Display::drawFrame(yc::Player* player, yc::world::World* world) {
 
     glBindFramebuffer(GL_FRAMEBUFFER, opaqueFBO);
 
-    yc::Resource::CompositeShader.use();
+    yc::Resource::CompositeShader.use(); 
 
     glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, accumTexture);

@@ -41,9 +41,10 @@ void GUI::init(GLFWwindow* window) {
     io.Fonts->AddFontDefault(&config);
 }
 
-void GUI::update(yc::Application* application, yc::world::World* world, Player* player) {
+void GUI::update(yc::Application* application, Player* player, yc::GameManager* gameManager) {
+    this->gameManager = gameManager;
     if (gameScene == nullptr) {
-        gameScene = std::make_shared<GameScene>(player, world);
+        gameScene = std::make_shared<GameScene>(player, gameManager);
     }
 }
 
@@ -80,25 +81,35 @@ void GUI::render() {
     ImGui::SetNextWindowPos(ImVec2(20.0f, 20.0f), ImGuiCond_Always);
     ImGui::Begin("HUD", nullptr, hudFlags);
 
-    // TODO: replace these placeholder values with real game data later
-    float healthPercent = 0.75f; // 0.0f - 1.0f
-    float timeSeconds   = 123.4f;
-    float windSpeedMs   = 5.6f;
+    float healthPercent = 0.75f; // TODO: wire to player health
 
-    // Healthbar
     ImGui::Text("Health");
     ImVec2 barSize(200.0f, 20.0f);
     ImGui::ProgressBar(healthPercent, barSize);
     ImGui::Spacing();
 
-    // Timer (MM:SS)
-    int totalSeconds = static_cast<int>(timeSeconds);
-    int minutes      = totalSeconds / 60;
-    int seconds      = totalSeconds % 60;
-    ImGui::Text("Time: %02d:%02d", minutes, seconds);
+    if (gameManager) {
+        const auto tod = gameManager->getTimeOfDay();
+        ImGui::Text("Time: %02d:%02d:%02d", tod.hours, tod.minutes, tod.seconds);
 
-    // Windspeed
-    ImGui::Text("Wind: %.1f m/s", windSpeedMs);
+        ImGui::Text("Sim: %s (T)", gameManager->isSimulationRunning() ? "Running" : "Paused");
+
+        const auto& wind = gameManager->getWindState();
+        ImGui::Text("Wind: %.1f m/s", wind.speed);
+        if (wind.speed <= 1e-6) {
+            ImGui::Text("Dir: --");
+        } else {
+            ImGui::Text("Dir: %.0f deg", wind.directionDeg);
+        }
+
+        ImGui::Text("Temp: %.1f C", gameManager->getTemperatureC());
+    } else {
+        ImGui::Text("Time: --:--:--");
+        ImGui::Text("Sim: -- (T)");
+        ImGui::Text("Wind: --.- m/s");
+        ImGui::Text("Dir: --");
+        ImGui::Text("Temp: --.- C");
+    }
 
     ImGui::End();
     // --- end HUD ---

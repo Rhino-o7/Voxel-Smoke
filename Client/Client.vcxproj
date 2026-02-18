@@ -143,6 +143,7 @@
   <ItemGroup>
     <ClCompile Include="src\application.cpp" />
     <ClCompile Include="src\camera.cpp" />
+    <ClCompile Include="src\game_manager.cpp" />
     <ClCompile Include="src\gl\common.cpp" />
     <ClCompile Include="src\gl\framebuffer.cpp" />
     <ClCompile Include="src\gl\mesh.cpp" />
@@ -178,6 +179,7 @@
     <ClInclude Include="src\application.h" />
     <ClInclude Include="src\camera.h" />
     <ClInclude Include="src\game_clock.h" />
+    <ClInclude Include="src\game_manager.h" />
     <ClInclude Include="src\gl\common.h" />
     <ClInclude Include="src\gl\framebuffer.h" />
     <ClInclude Include="src\gl\mesh.h" />
