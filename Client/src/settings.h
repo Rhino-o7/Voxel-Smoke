@@ -6,7 +6,7 @@ namespace yc {
 
 struct Settings {
     struct ExposureSettings {
-        float exposureScale = 0.01f;
+        float exposureScale = 0.001f;
     } exposure;
 
     struct GameSettings {
@@ -29,13 +29,15 @@ struct Settings {
     } chimney;
 
     struct SmokeSettings {
-        double updateIntervalSec = 0.40;
-        int maxDownwindBlocks = 96;
-        int maxCrosswindRadiusBlocks = 12;
-        int maxVerticalRadiusBlocks = 10;
-        int maxBlocksPerUpdate = 2500;
-        double concentrationThreshold = 0.25;
-        double patchiness = 0.20;
+        int stepCount = 64;
+        float densityScale = 0.45f;
+        float colorR = 0.5f;
+        float colorG = 0.7f;
+        float colorB = 0.4f;
+
+        float boxDownwind = 200.0f;
+        float boxCrosswind = 50.0f;
+        float boxVertical = 50.0f;
     } smoke;
 };
 

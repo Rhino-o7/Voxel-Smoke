@@ -147,9 +147,6 @@ void BlockVertex::setBlockType(yc::world::BlockType blockType, const glm::ivec3&
                 setTexure(2, 15);
             }
             break;
-        case yc::world::BlockType::AIR_SMOKE:
-            setTexure(15, 15);
-			break;
         case yc::world::BlockType::CROP:
             setTexure(13, 0);
             break;

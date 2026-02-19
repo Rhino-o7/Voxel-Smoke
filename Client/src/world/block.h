@@ -23,7 +23,6 @@ enum class BlockType {
     YELLOW_FLOWER,
     BLUE_FLOWER,
 	CHIMNEY,
-    AIR_SMOKE,
     NONE,
     CROP
 };

@@ -44,7 +44,7 @@ void Chunk::setCoordinate(World* world, const glm::ivec2& coord) {
 }
 
 glm::ivec3 Chunk::getWorldCoord() const {
-    return { this->coord.x<<4, 0, this->coord.y<<4 };
+    return { this->coord.x * Chunk::Length, 0, this->coord.y * Chunk::Width };
 }
 
 void Chunk::buildMeshIfNeeded() {
@@ -264,9 +264,9 @@ glm::ivec3 Chunk::getWorldCoordOfBlock(const glm::ivec3& blockCoord) {
     assert(blockCoord.z>=0 && blockCoord.z<Chunk::Width);
 
     return {
-        blockCoord.x + (this->coord.x << 4),
+        blockCoord.x + (this->coord.x * Chunk::Length),
         blockCoord.y,
-        blockCoord.z + (this->coord.y << 4)
+        blockCoord.z + (this->coord.y * Chunk::Width)
     };
 }
 

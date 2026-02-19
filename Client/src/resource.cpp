@@ -63,7 +63,6 @@ void Resource::Load() {
 
     //temp
 	Resource::BlockIcons[world::BlockType::CHIMNEY].loadFromFile("./resources/icons/stone.png");
-	Resource::BlockIcons[world::BlockType::AIR_SMOKE].loadFromFile("./resources/icons/water.png");
 }
 
 }

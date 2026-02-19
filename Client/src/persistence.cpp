@@ -3,132 +3,212 @@
 #include <sstream>
 #include <cstring>
 #include <assert.h>
+#include <filesystem>
 
 namespace yc {
 
-const std::string Persistence::WorldFolder = "save/"; 
+namespace fs = std::filesystem;
+
+static fs::path GetWorldFolderPath() {
+    // Use the process working directory so behavior is explicit and debuggable.
+    // (If you want it relative to the EXE, we can change this to use argv[0] / GetModuleFileName.)
+    return fs::absolute(fs::path(Persistence::WorldFolder));
+}
+
+const std::string Persistence::WorldFolder = "save/";
 
 const size_t ChunkSize = yc::world::Chunk::Volume * sizeof(yc::world::BlockData);
 const size_t RegionHeaderSize = sizeof(int16_t) + sizeof(int16_t) * 32 * 32;
 
+static int32_t FloorDiv32(int32_t v) {
+    return (v >= 0) ? (v / 32) : ((v + 1) / 32 - 1);
+}
+
 Persistence::Persistence() {}
 
 Persistence::~Persistence() {
-    for (auto& [regionCoord, region]: this->regions) {
-        region->input->close();
+    for (auto& [regionCoord, region] : this->regions) {
+        if (region->file && region->file->is_open()) {
+            region->file->close();
+        }
+        region->file.reset();
     }
+}
+
+bool Persistence::ensureRegionFileOpen(const glm::ivec2& regionCoord, const std::shared_ptr<Region>& region) {
+    if (!region) {
+        return false;
+    }
+
+    if (region->file && region->file->is_open() && !region->file->fail()) {
+        return true;
+    }
+
+    const fs::path worldFolder = GetWorldFolderPath();
+    fs::create_directories(worldFolder);
+
+    const fs::path filePath = worldFolder / getRegionFileName(regionCoord);
+
+    if (!fs::exists(filePath)) {
+        std::ofstream newFile(filePath, std::ios::binary | std::ios::out | std::ios::trunc);
+        if (!newFile.is_open()) {
+            std::cout << "ERROR: Failed to create region file: " << filePath.string() << "\n";
+            return false;
+        }
+
+        newFile.write((char*)&region->numGeneratedChunks, sizeof(int16_t));
+        newFile.write((char*)region->offsets, sizeof(region->offsets));
+        newFile.flush();
+        newFile.close();
+    }
+
+    region->file = std::make_shared<std::fstream>(filePath, std::ios::binary | std::ios::in | std::ios::out);
+    if (!region->file->is_open() || region->file->fail()) {
+        std::error_code ec;
+        const auto sz = fs::file_size(filePath, ec);
+
+        std::cout
+            << "ERROR: Failed to open region file: " << filePath.string() << "\n"
+            << "  cwd: " << fs::current_path().string() << "\n"
+            << "  exists: " << (fs::exists(filePath) ? "yes" : "no") << "\n"
+            << "  size: " << (ec ? -1 : (int64_t)sz) << "\n";
+        return false;
+    }
+
+    return true;
 }
 
 void Persistence::loadRegion(const glm::ivec2& regionCoord) {
     std::shared_ptr<Region> region = std::make_shared<Region>();
     region->coord = regionCoord;
 
-    std::string fileName = getRegionFileName(regionCoord);
-    std::string filePath = WorldFolder + fileName;
+    const std::string fileName = getRegionFileName(regionCoord);
 
-    // create & setup region file if not exist
-    std::ifstream checker(filePath);
-    bool firstTime = checker.fail();
-    if (firstTime) {
-        std::ofstream newFile(filePath);
+    const fs::path worldFolder = GetWorldFolderPath();
+    fs::create_directories(worldFolder); // IMPORTANT: ensure save/ exists
 
-        // fill offets by value 1024 (1024 -> not generated)
-        for (int i=0;i<32*32;++i) {
-            region->offsets[i] = -1;
-        }
+    const fs::path filePath = worldFolder / fileName;
 
+    // Create the file if missing
+    if (!fs::exists(filePath)) {
+        for (int i = 0; i < 32 * 32; ++i) region->offsets[i] = -1;
         region->numGeneratedChunks = 0;
-        newFile.write((char*) &region->numGeneratedChunks, sizeof(int16_t));
-        newFile.write((char*) region->offsets, sizeof(region->offsets));
 
+        std::ofstream newFile(filePath, std::ios::binary | std::ios::out | std::ios::trunc);
+        newFile.write((char*)&region->numGeneratedChunks, sizeof(int16_t));
+        newFile.write((char*)region->offsets, sizeof(region->offsets));
+        newFile.flush();
         newFile.close();
 
-        std::cout << "Created new region file " << fileName << "\n";
-    }
-    checker.close();
-
-    region->input = std::make_shared<std::ifstream>(filePath, std::ios::binary|std::ios::in);
-    region->output = nullptr;
-
-    // load offset array if region file is already exist
-    if (!firstTime) {
-        region->input->seekg(0, std::ios::beg);
-        region->input->read((char*) &region->numGeneratedChunks, sizeof(int16_t));
-        region->input->seekg(sizeof(int16_t), std::ios::beg);
-        region->input->read((char*) &region->offsets[0], sizeof(region->offsets));
+        std::cout << "Created new region file " << filePath.string() << "\n";
     }
 
-    region->coord = regionCoord;
+    region->file = std::make_shared<std::fstream>(filePath, std::ios::binary | std::ios::in | std::ios::out);
+    if (!region->file->is_open() || region->file->fail()) {
+        std::error_code ec;
+        const auto sz = fs::file_size(filePath, ec);
+
+        std::cout
+            << "ERROR: Failed to open region file: " << filePath.string() << "\n"
+            << "  cwd: " << fs::current_path().string() << "\n"
+            << "  exists: " << (fs::exists(filePath) ? "yes" : "no") << "\n"
+            << "  size: " << (ec ? -1 : (int64_t)sz) << "\n";
+        return;
+    }
+
+    // Read header
+    region->file->clear();
+    region->file->seekg(0, std::ios::beg);
+    region->file->read((char*)&region->numGeneratedChunks, sizeof(int16_t));
+    region->file->seekg(sizeof(int16_t), std::ios::beg);
+    region->file->read((char*)&region->offsets[0], sizeof(region->offsets));
+
     this->regions[regionCoord] = region;
 }
 
 std::shared_ptr<yc::world::Chunk> Persistence::getChunk(const glm::ivec2& chunkCoord, yc::world::World* world) {
-    const glm::ivec2 localChunkCoord = { chunkCoord.x & 31, chunkCoord.y & 31 };
-    const glm::ivec2 regionCoord = { chunkCoord.x >> 5, chunkCoord.y >> 5 };
-    const int16_t chunkId = localChunkCoord.x + localChunkCoord.y * 32;
-    
+    const int32_t regionX = FloorDiv32(chunkCoord.x);
+    const int32_t regionY = FloorDiv32(chunkCoord.y);
+
+    const int32_t localX = chunkCoord.x - regionX * 32;
+    const int32_t localY = chunkCoord.y - regionY * 32;
+
+    const glm::ivec2 regionCoord = { regionX, regionY };
+    const int16_t chunkId = static_cast<int16_t>(localX + localY * 32);
+
     if (this->regions.find(regionCoord) == this->regions.end()) {
         loadRegion(regionCoord);
     }
 
-    // begin reading region file
     const auto& region = this->regions[regionCoord];
+    if (!ensureRegionFileOpen(regionCoord, region)) {
+        return nullptr;
+    }
 
     if (region->offsets[chunkId] == -1) {
         return nullptr;
     }
 
-    region->input->clear();
-
     auto chunk = std::make_shared<yc::world::Chunk>();
     chunk->setCoordinate(world, chunkCoord);
 
-    // read chunk data
-    region->input->seekg(RegionHeaderSize + ChunkSize * region->offsets[chunkId], std::ios::beg);
-    region->input->read((char*) chunk->getChunkData(), ChunkSize);
+    region->file->clear();
+    region->file->seekg(RegionHeaderSize + ChunkSize * region->offsets[chunkId], std::ios::beg);
+    region->file->read((char*)chunk->getChunkData(), ChunkSize);
 
     return chunk;
 }
 
 void Persistence::saveChunk(std::shared_ptr<yc::world::Chunk> chunk) {
-    // return;
     const glm::ivec2 chunkCoord = chunk->getCoord();
-    const glm::ivec2 localChunkCoord = { chunkCoord.x & 31, chunkCoord.y & 31 };
-    const glm::ivec2 regionCoord = { chunkCoord.x >> 5, chunkCoord.y >> 5 };
-    const int16_t chunkId = localChunkCoord.x + localChunkCoord.y * 32;
 
-    // begin writing region file
-    const auto& region = this->regions[regionCoord];
+    const int32_t regionX = FloorDiv32(chunkCoord.x);
+    const int32_t regionY = FloorDiv32(chunkCoord.y);
 
-    if (region->output == nullptr) {
-        auto filePath = WorldFolder + getRegionFileName(regionCoord);
-        region->output = std::make_shared<std::ofstream>(filePath, std::ios::binary|std::ios::out|std::ios::in);
+    const int32_t localX = chunkCoord.x - regionX * 32;
+    const int32_t localY = chunkCoord.y - regionY * 32;
+
+    const glm::ivec2 regionCoord = { regionX, regionY };
+    const int16_t chunkId = static_cast<int16_t>(localX + localY * 32);
+
+    if (this->regions.find(regionCoord) == this->regions.end()) {
+        loadRegion(regionCoord);
     }
 
-    // chunk is not stored in file
+    const auto& region = this->regions[regionCoord];
+    if (!ensureRegionFileOpen(regionCoord, region)) {
+        std::cout << "ERROR: Region not open for save: " << (WorldFolder + getRegionFileName(regionCoord)) << "\n";
+        return;
+    }
+
+    // Allocate offset slot if first time saving this chunk
     if (region->offsets[chunkId] == -1) {
-        // set chunk offset
         region->offsets[chunkId] = region->numGeneratedChunks;
 
-        region->output->seekp(sizeof(int16_t) + chunkId * sizeof(int16_t), std::ios::beg);
-        region->output->write((char*) &region->offsets[chunkId], sizeof(int16_t));
+        // Persist offsets[chunkId]
+        region->file->clear();
+        region->file->seekp(sizeof(int16_t) + chunkId * sizeof(int16_t), std::ios::beg);
+        region->file->write((char*)&region->offsets[chunkId], sizeof(int16_t));
 
-        // update numGeneratedChunks
+        // Persist numGeneratedChunks
         region->numGeneratedChunks += 1;
-        region->output->seekp(0, std::ios::beg);
-        region->output->write((char*) &region->numGeneratedChunks, sizeof(int16_t));
+        region->file->seekp(0, std::ios::beg);
+        region->file->write((char*)&region->numGeneratedChunks, sizeof(int16_t));
+
+        region->file->flush(); // IMPORTANT: header must hit disk
     }
 
-    // insert chunk data
-    region->output->seekp(RegionHeaderSize + ChunkSize * region->offsets[chunkId], std::ios::beg);
-    region->output->write((char*) chunk->getChunkData(), ChunkSize);
+    // Write chunk payload
+    region->file->clear();
+    region->file->seekp(RegionHeaderSize + ChunkSize * region->offsets[chunkId], std::ios::beg);
+    region->file->write((char*)chunk->getChunkData(), ChunkSize);
+    region->file->flush();
 }
 
 void Persistence::syncRegionFiles() {
-    for (auto& [regionCoord, region]: this->regions) {
-        if (region->output != nullptr) {
-            region->output->close();
-            region->output = nullptr;
+    for (auto& [regionCoord, region] : this->regions) {
+        if (region && region->file && region->file->is_open()) {
+            region->file->flush();
         }
     }
 }

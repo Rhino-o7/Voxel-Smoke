@@ -80,7 +80,6 @@ public:
 
     void addChimneyEmitter(const BlockPos& baseBlockCoord, double height, double exitVelocity, double radius);
 
-    void clearAllSmokeBlocksInLoadedChunks();
 
     void setWindState(const WindState& state) { windState = state; }
     const WindState& getWindState() const { return windState; }

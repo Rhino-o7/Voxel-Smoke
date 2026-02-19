@@ -1,6 +1,5 @@
 #pragma once
 
-#include <memory>
 #include <string>
 #include <cmath>
 
@@ -9,7 +8,6 @@
 #include "world/world.h"
 #include "world/wind_system.h"
 #include "world/pollution_system.h"
-#include "world/smoke_visualizer.h"
 #include "settings.h"
 
 namespace yc {
@@ -20,6 +18,12 @@ public:
         int height = 20;
         int radius = 5;
         double exitVelocity = 10.0;
+    };
+
+    enum class ChimneyParam {
+        Height,
+        Radius,
+        ExitVelocity
     };
 
     struct TimeOfDay {
@@ -60,6 +64,9 @@ public:
     const ChimneySettings& getChimneySettings() const { return chimneySettings; }
     void setChimneySettings(const ChimneySettings& settings) { chimneySettings = settings; }
 
+    ChimneyParam getActiveChimneyParam() const { return activeChimneyParam; }
+    void setActiveChimneyParam(ChimneyParam value) { activeChimneyParam = value; }
+
     double getPollutionAtWorld(const yc::world::WorldPos& worldPos) const;
     double getPollutionAtBlock(const yc::world::BlockPos& blockPos) const;
 
@@ -79,9 +86,8 @@ private:
     yc::world::WindSystem wind;
     yc::world::PollutionSystem pollution;
 
-    std::unique_ptr<yc::world::SmokeVisualizer> smokeViz;
-
     ChimneySettings chimneySettings{};
+    ChimneyParam activeChimneyParam = ChimneyParam::Height;
     float temperatureC = 20.0f;
 
     bool simulationRunning = false;

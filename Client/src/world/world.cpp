@@ -28,14 +28,16 @@ World::World(Persistence* persistence) : generator(0), persistence(persistence) 
 
 void World::init()
 {
-    clearAllSmokeBlocksInLoadedChunks();
 }
 
 void World::update(yc::Camera* camera) {
-    glm::ivec2 cameraChunkCoord = {
-        camera->getPosition().x / Chunk::Length,
-        camera->getPosition().z / Chunk::Width,
-    };
+    const glm::vec3 cameraPos = camera->getPosition();
+    const BlockPos cameraBlockCoord = getWorldtoBlockCoord(WorldPos{
+        static_cast<double>(cameraPos.x),
+        static_cast<double>(cameraPos.y),
+        static_cast<double>(cameraPos.z)
+    });
+    const glm::ivec2 cameraChunkCoord = GetChunkCoordOf(cameraBlockCoord);
 
     const int32_t viewDistance = settings.viewDistance;
     const int32_t maxUnloadChunkPerFrame = settings.maxUnloadChunkPerFrame;
@@ -67,7 +69,10 @@ void World::update(yc::Camera* camera) {
 
         if (Chunk::DistanceTo(chunkCoordToCheck, cameraChunkCoord) <= viewDistance) {
             auto iter = chunks.find(chunkCoordToCheck);
-            if (iter == chunks.end()) {
+            if (iter == chunks.end() || iter->second == nullptr) {
+                if (iter != chunks.end()) {
+                    chunks.erase(iter);
+                }
                 generateOrLoadChunkAt(chunkCoordToCheck);
                 ++chunkCount;
             }
@@ -113,13 +118,18 @@ void World::generateOrLoadChunkAt(const glm::ivec2& chunkCoord) {
 }
 
 void World::unloadChunk(const glm::ivec2& chunkCoord) {
-    persistence->saveChunk(this->chunks[chunkCoord]);
-    this->chunks.erase(chunkCoord);
+    auto iter = this->chunks.find(chunkCoord);
+    if (iter == this->chunks.end() || iter->second == nullptr) {
+        return;
+    }
+
+    persistence->saveChunk(iter->second);
+    this->chunks.erase(iter);
 }
 
 bool World::isChunkLoaded(const glm::ivec2& chunkCoord) {
     auto iter = this->chunks.find(chunkCoord);
-    return iter != this->chunks.end();
+    return iter != this->chunks.end() && iter->second != nullptr;
 }
 
 void World::setCropExposureMap(const CropExposureMap* map) {
@@ -412,26 +422,8 @@ World::RayCastResult World::raycastCheck(const glm::vec3& position, const glm::v
 }
 
 
-void World::clearAllSmokeBlocksInLoadedChunks() {
-    for (const auto& [chunkCoord, chunk] : chunks) {
-        // chunk origin in world coords
-        const int baseX = chunkCoord.x * Chunk::Length;
-        const int baseZ = chunkCoord.y * Chunk::Width;
 
-        for (int lx = 0; lx < Chunk::Length; ++lx) {
-            for (int lz = 0; lz < Chunk::Width; ++lz) {
-                for (int y = 0; y < 256; ++y) {
-                    const glm::ivec3 wpos{ baseX + lx, y, baseZ + lz };
 
-                    const BlockData b = getBlockDataIfLoadedAt(wpos);
-                    if (b.getType() == BlockType::AIR_SMOKE) {
-                        setBlockDataIfLoadedAt(wpos, { BlockType::AIR });
-                    }
-                }
-            }
-        }
-    }
-}
 
 
 

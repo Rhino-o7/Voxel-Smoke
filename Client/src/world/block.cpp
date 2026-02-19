@@ -51,7 +51,6 @@ bool BlockData::isTransparent() const {
     BlockType blockType = getType();
     return blockType == BlockType::AIR
         || blockType == BlockType::GLASS
-        || blockType == BlockType::AIR_SMOKE
         || blockType == BlockType::WATER
 	    || blockType == BlockType::LEAF
 	    || blockType == BlockType::CROP;
@@ -95,8 +94,6 @@ std::string GetBlockName(BlockType blockType) {
             return "Grass";
 		case BlockType::CHIMNEY:
 			return "Chimney";
-		case BlockType::AIR_SMOKE:
-			return "Air Smoke";
         case BlockType::CROP:
             return "Crop";
         default:

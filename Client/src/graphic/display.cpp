@@ -42,6 +42,7 @@ float cubeVertices[] = {
 static bool ComputeSmokeBounds(
     const std::vector<yc::world::ChimneySource>& sources,
     const yc::world::WindState& wind,
+    const yc::Settings::SmokeSettings& settings,
     glm::vec3& outMin,
     glm::vec3& outMax) {
 
@@ -52,9 +53,9 @@ static bool ComputeSmokeBounds(
     const glm::dvec2 dir = wind.unitDirXZ();
     const glm::dvec2 perp(-dir.y, dir.x);
 
-    const float maxDownwind = 100.0f;
-    const float maxCrosswind = 30.0f;
-    const float maxVertical = 30.0f;
+    const float maxDownwind = settings.boxDownwind;
+    const float maxCrosswind = settings.boxCrosswind;
+    const float maxVertical = settings.boxVertical;
 
     bool initialized = false;
 
@@ -159,13 +160,17 @@ void Display::init() {
     glBindVertexArray(0);
 }
 
+void Display::setSmokeSettings(const yc::Settings::SmokeSettings& settings) {
+    smokeSettings = settings;
+}
+
 void Display::renderSmokeVolume(yc::Camera* camera, yc::world::World* world) {
     const auto& sources = world->getChimneyEmitters();
     const auto& wind = world->getWindState();
 
     glm::vec3 boxMin{};
     glm::vec3 boxMax{};
-    if (!ComputeSmokeBounds(sources, wind, boxMin, boxMax)) {
+    if (!ComputeSmokeBounds(sources, wind, smokeSettings, boxMin, boxMax)) {
         return;
     }
 
@@ -194,11 +199,21 @@ void Display::renderSmokeVolume(yc::Camera* camera, yc::world::World* world) {
     model = glm::translate(model, center);
     model = glm::scale(model, size);
 
+    const glm::vec3 camPos = camera->getPosition();
+    const bool cameraInside =
+        camPos.x >= boxMin.x && camPos.x <= boxMax.x &&
+        camPos.y >= boxMin.y && camPos.y <= boxMax.y &&
+        camPos.z >= boxMin.z && camPos.z <= boxMax.z;
+
+    if (cameraInside) {
+        glDepthFunc(GL_ALWAYS);
+    }
+
     auto& shader = yc::Resource::SmokeVolumeShader;
     shader.use();
     shader.setMat4("projection_view", camera->getProjectionViewMatrix());
     shader.setMat4("model", model);
-    shader.setVec3("uCameraPos", camera->getPosition());
+    shader.setVec3("uCameraPos", camPos);
     shader.setVec3("uBoxMin", boxMin);
     shader.setVec3("uBoxMax", boxMax);
 
@@ -210,15 +225,19 @@ void Display::renderSmokeVolume(yc::Camera* camera, yc::world::World* world) {
     shader.setVec4Array("uSourcePosH", posH);
     shader.setVec4Array("uSourceParams", params);
 
-    shader.setInt("uStepCount", 64);
-    shader.setFloat("uDensityScale", 0.45f);
-    shader.setVec3("uSmokeColor", glm::vec3(0.45f, 0.45f, 0.45f));
+    shader.setInt("uStepCount", std::max(1, smokeSettings.stepCount));
+    shader.setFloat("uDensityScale", smokeSettings.densityScale);
+    shader.setVec3("uSmokeColor", glm::vec3(smokeSettings.colorR, smokeSettings.colorG, smokeSettings.colorB));
     shader.setFloat("zNear", 0.1f);
     shader.setFloat("zFar", 5000.0f);
 
     glBindVertexArray(cubeVAO);
     glDrawArrays(GL_TRIANGLES, 0, 36);
     glBindVertexArray(0);
+
+    if (cameraInside) {
+        glDepthFunc(GL_LESS);
+    }
 }
 
 void Display::prepareFrame() {

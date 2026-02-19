@@ -37,8 +37,7 @@ void Player::init() {
         yc::world::BlockType::CROP,
 		yc::world::BlockType::GLASS,
        
-        yc::world::BlockType::CHIMNEY,
-		yc::world::BlockType::AIR_SMOKE
+        yc::world::BlockType::CHIMNEY
     };
 }
 

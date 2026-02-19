@@ -15,7 +15,6 @@ void GameManager::init(yc::world::World* world, Player* player) {
     this->player = player;
 
     if (world) {
-        smokeViz = std::make_unique<yc::world::SmokeVisualizer>(world);
         world->setWindState(currentWindState);
         world->setCropExposureMap(&cropExposureByBlock);
     }
@@ -197,20 +196,17 @@ void GameManager::applySettings(const Settings& settings) {
     temperatureC = settings.game.temperatureC;
     exposureScale = settings.exposure.exposureScale;
 
+    if (world) {
+        world->setSettings(settings.world);
+        world->setExposureScale(settings.exposure.exposureScale);
+    }
+
     chimneySettings.height = settings.chimney.height;
     chimneySettings.radius = settings.chimney.radius;
     chimneySettings.exitVelocity = settings.chimney.exitVelocity;
 
-    if (smokeViz) {
-        yc::world::SmokeVisualizer::Settings s{};
-        s.updateIntervalSec = settings.smoke.updateIntervalSec;
-        s.maxDownwindBlocks = settings.smoke.maxDownwindBlocks;
-        s.maxCrosswindRadiusBlocks = settings.smoke.maxCrosswindRadiusBlocks;
-        s.maxVerticalRadiusBlocks = settings.smoke.maxVerticalRadiusBlocks;
-        s.maxBlocksPerUpdate = settings.smoke.maxBlocksPerUpdate;
-        s.concentrationThreshold = settings.smoke.concentrationThreshold;
-        s.patchiness = settings.smoke.patchiness;
-        smokeViz->setSettings(s);
+    if (!settings.game.windCsvPath.empty()) {
+        loadWindCsv(settings.game.windCsvPath);
     }
 
     if (settings.game.startSimulationRunning && !simulationRunning) {
