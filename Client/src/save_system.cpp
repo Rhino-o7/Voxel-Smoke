@@ -10,7 +10,7 @@ namespace fs = std::filesystem;
 
 namespace {
     constexpr uint32_t SaveMagic = 0x56534359; // "YCSV"
-    constexpr uint32_t SaveVersion = 1;
+    constexpr uint32_t SaveVersion = 2;
 
     struct SaveHeader {
         uint32_t magic = SaveMagic;
@@ -154,6 +154,16 @@ bool SaveSystem::saveGame(const Settings& settings, const GameManager& gameManag
         if (!WriteDouble(out, c.radius)) return false;
     }
 
+    const auto& cropExposure = gameManager.getCropExposureByBlock();
+    if (!WriteU32(out, static_cast<uint32_t>(cropExposure.size()))) return false;
+
+    for (const auto& [pos, exposure] : cropExposure) {
+        if (!WriteInt(out, pos.x)) return false;
+        if (!WriteInt(out, pos.y)) return false;
+        if (!WriteInt(out, pos.z)) return false;
+        if (!WriteDouble(out, exposure)) return false;
+    }
+
     out.flush();
     return out.good();
 }
@@ -170,7 +180,7 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
 
     SaveHeader header{};
     if (!ReadBytes(in, &header, sizeof(header))) return false;
-    if (header.magic != SaveMagic || header.version != SaveVersion) return false;
+    if (header.magic != SaveMagic || header.version == 0 || header.version > SaveVersion) return false;
 
     Settings::WorldSettings ws{};
     if (!ReadInt(in, ws.viewDistance)) return false;
@@ -207,6 +217,22 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
         chimneys.push_back(c);
     }
 
+    yc::world::CropExposureMap cropExposure;
+    if (header.version >= 2) {
+        uint32_t cropCount = 0;
+        if (!ReadU32(in, cropCount)) return false;
+
+        for (uint32_t i = 0; i < cropCount; ++i) {
+            int x = 0, y = 0, z = 0;
+            double exposure = 0.0;
+            if (!ReadInt(in, x)) return false;
+            if (!ReadInt(in, y)) return false;
+            if (!ReadInt(in, z)) return false;
+            if (!ReadDouble(in, exposure)) return false;
+            cropExposure[{ x, y, z }] = exposure;
+        }
+    }
+
     settings.world = ws;
     settings.game.timeScale = timeScale;
     settings.game.temperatureC = temperatureC;
@@ -221,6 +247,7 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
     gameManager.setExposureScale(exposureScale);
     gameManager.setSimTimeSec(simTimeSec);
     gameManager.setSimulationRunning(running != 0);
+    gameManager.setCropExposureByBlock(cropExposure);
 
     return true;
 }

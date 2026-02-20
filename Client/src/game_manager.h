@@ -74,6 +74,7 @@ public:
     void unregisterCropBlock(const yc::world::BlockPos& blockPos);
     double getCropExposureAtBlock(const yc::world::BlockPos& blockPos) const;
     const yc::world::CropExposureMap& getCropExposureByBlock() const { return cropExposureByBlock; }
+    void setCropExposureByBlock(const yc::world::CropExposureMap& map) { cropExposureByBlock = map; }
     float getCropHealthPercent() const;
 
     double getTimeScale() const { return clock.getTimeScale(); }

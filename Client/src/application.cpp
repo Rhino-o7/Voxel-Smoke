@@ -178,7 +178,7 @@ namespace yc {
 
         gui.update(this, player, &gameManager);
 
-        display.drawFrame(player, world);
+        display.drawFrame(player, world, gameManager.isSimulationRunning());
 
         gui.render();
 

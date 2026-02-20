@@ -164,7 +164,7 @@ void Display::setSmokeSettings(const yc::Settings::SmokeSettings& settings) {
     smokeSettings = settings;
 }
 
-void Display::renderSmokeVolume(yc::Camera* camera, yc::world::World* world) {
+void Display::renderSmokeVolume(yc::Camera* camera, yc::world::World* world, bool useWeightedOIT) {
     const auto& sources = world->getChimneyEmitters();
     const auto& wind = world->getWindState();
 
@@ -216,6 +216,7 @@ void Display::renderSmokeVolume(yc::Camera* camera, yc::world::World* world) {
     shader.setVec3("uCameraPos", camPos);
     shader.setVec3("uBoxMin", boxMin);
     shader.setVec3("uBoxMax", boxMax);
+    shader.setInt("uUseWeightedOIT", useWeightedOIT ? 1 : 0);
 
     const glm::dvec2 dir = wind.unitDirXZ();
     shader.setFloat("uWindSpeed", static_cast<float>(wind.speed));
@@ -245,7 +246,7 @@ void Display::prepareFrame() {
     
 }
 
-void Display::drawFrame(yc::Player* player, yc::world::World* world) {
+void Display::drawFrame(yc::Player* player, yc::world::World* world, bool renderSmoke) {
     glm::vec4 zeroFillerVec(0.0f);
 	glm::vec4 oneFillerVec(1.0f);
     
@@ -289,34 +290,44 @@ void Display::drawFrame(yc::Player* player, yc::world::World* world) {
 
     // render transparent
     glDepthMask(GL_FALSE);
-	glEnable(GL_BLEND);
-	glBlendEquation(GL_FUNC_ADD);
-	glBlendFunci(0, GL_ONE, GL_ONE);
-	glBlendFunci(1, GL_ZERO, GL_ONE_MINUS_SRC_COLOR);
+    glEnable(GL_BLEND);
+    glBlendEquation(GL_FUNC_ADD);
+    glBlendFunci(0, GL_ONE, GL_ONE);
+    glBlendFunci(1, GL_ZERO, GL_ONE_MINUS_SRC_COLOR);
 
     glBindFramebuffer(GL_FRAMEBUFFER, transparentFBO);
-	glClearBufferfv(GL_COLOR, 0, &zeroFillerVec[0]);
-	glClearBufferfv(GL_COLOR, 1, &oneFillerVec[0]);
+    glClearBufferfv(GL_COLOR, 0, &zeroFillerVec[0]);
+    glClearBufferfv(GL_COLOR, 1, &oneFillerVec[0]);
 
     world->renderTransparent(player->getCamera());
-    renderSmokeVolume(player->getCamera(), world);
 
     glDepthFunc(GL_ALWAYS);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     glBindFramebuffer(GL_FRAMEBUFFER, opaqueFBO);
 
     yc::Resource::CompositeShader.use(); 
 
     glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, accumTexture);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, revealTexture);
-	glBindVertexArray(quadVAO);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindTexture(GL_TEXTURE_2D, accumTexture);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, revealTexture);
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
 
-	// draw to backbuffer (final pass)
+    // smoke overlay (after transparent composite)
+    if (renderSmoke) {
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
+        glDepthMask(GL_FALSE);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
+        renderSmokeVolume(player->getCamera(), world, false);
+    }
+
+    // draw to backbuffer (final pass)
 	// -----
 
 	// set render states

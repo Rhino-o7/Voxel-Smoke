@@ -24,11 +24,6 @@ C:\Dev\GitRepos\Voxel-Pollution\Client\src\gui\pause_scene.cpp(17,62): warning C
 C:\Dev\GitRepos\Voxel-Pollution\Client\src\player.cpp(9,26): warning C4305: 'initializing': truncation from 'double' to 'float'
 C:\Dev\GitRepos\Voxel-Pollution\Client\src\player.cpp(136,52): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
   save_system.cpp
-  chunk.cpp
-C:\Dev\GitRepos\Voxel-Pollution\Client\src\world\chunk.cpp(305,16): warning C4244: 'return': conversion from 'double' to 'int32_t', possible loss of data
-  world.cpp
-C:\Dev\GitRepos\Voxel-Pollution\Client\src\world\world.cpp(366,18): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-  world_generator.cpp
   Generating Code...
   Client.vcxproj -> C:\Dev\GitRepos\Voxel-Pollution\build\bin\Debug\Client.exe
   'pwsh.exe' is not recognized as an internal or external command,

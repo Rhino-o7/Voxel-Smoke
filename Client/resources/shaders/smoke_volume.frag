@@ -20,6 +20,8 @@ uniform int uStepCount;
 uniform float uDensityScale;
 uniform vec3 uSmokeColor;
 
+uniform int uUseWeightedOIT = 1;
+
 uniform float zFar = 5000.0f;
 uniform float zNear = 0.1f;
 
@@ -126,7 +128,12 @@ void main() {
     float finalAlpha = 1.0 - transmittance;
     if (finalAlpha <= 0.001) discard;
 
-    float w = weight(gl_FragCoord.z, finalAlpha);
-    accum = vec4(color, finalAlpha) * w;
-    reveal = finalAlpha;
+    if (uUseWeightedOIT != 0) {
+        float w = weight(gl_FragCoord.z, finalAlpha);
+        accum = vec4(color, finalAlpha) * w;
+        reveal = finalAlpha;
+    } else {
+        accum = vec4(color, finalAlpha);
+        reveal = finalAlpha;
+    }
 }

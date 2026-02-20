@@ -22,7 +22,7 @@ public:
 
     void prepareFrame();
 
-    void drawFrame(yc::Player* player, yc::world::World* world);
+    void drawFrame(yc::Player* player, yc::world::World* world, bool renderSmoke);
 
     void nextFrame();
 
@@ -31,7 +31,7 @@ public:
     void setSmokeSettings(const yc::Settings::SmokeSettings& settings);
 
 private:
-    void renderSmokeVolume(yc::Camera* camera, yc::world::World* world);
+    void renderSmokeVolume(yc::Camera* camera, yc::world::World* world, bool useWeightedOIT);
 
     glm::vec3 clearColor = { 0.2f, 0.3f, 0.3f };
 
