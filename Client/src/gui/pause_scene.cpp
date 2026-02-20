@@ -40,6 +40,11 @@ void PauseScene::render() {
         application->resumeGame();
     }
 
+    // BACK TO SAVE SELECT
+    if (ImGui::Button("Save Select")) {
+        application->setSaveSelectionActive(true);
+    }
+
     // BACK BUTTON
     GLuint backButtonTex = isBackButtonHovered
         ? Resource::HoveredBackButtonTexture.getId()

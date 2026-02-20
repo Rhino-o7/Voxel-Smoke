@@ -2,12 +2,14 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#include "application.h"
 
 namespace yc::gui {
 
 GUI::GUI():
     gameScene(nullptr),
-    pauseScene(nullptr) {
+    pauseScene(nullptr),
+    saveSelectScene(nullptr) {
 
 }
 
@@ -43,6 +45,15 @@ void GUI::init(GLFWwindow* window) {
 
 void GUI::update(yc::Application* application, Player* player, yc::GameManager* gameManager) {
     this->gameManager = gameManager;
+
+    if (application && application->isSaveSelectionActive()) {
+        if (!saveSelectScene) {
+            saveSelectScene = std::make_shared<SaveSelectScene>(application);
+        }
+    } else {
+        saveSelectScene = nullptr;
+    }
+
     if (gameScene == nullptr) {
         gameScene = std::make_shared<GameScene>(player, gameManager);
     }
@@ -60,7 +71,14 @@ void GUI::render() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-    
+
+    if (saveSelectScene) {
+        saveSelectScene->render();
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        return;
+    }
+
     if (gameScene) {
         gameScene->render();
     }

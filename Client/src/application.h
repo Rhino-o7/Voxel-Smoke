@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <string>
+#include <vector>
 #include "gl/common.h"
 
 #include "camera.h"
@@ -13,6 +14,7 @@
 #include "gui/gui.h"
 #include "game_manager.h"
 #include "settings.h"
+#include "save_system.h"
 
 namespace yc {
 
@@ -44,6 +46,16 @@ public:
     void pauseGame();
     void resumeGame();
 
+    bool createNewSave(const std::string& name);
+    bool loadSave(const std::string& name);
+    bool deleteSave(const std::string& name);
+    std::vector<std::string> listSaves() const;
+
+    void saveCurrentGame();
+
+    bool isSaveSelectionActive() const { return saveSelectionActive; }
+    void setSaveSelectionActive(bool value);
+
 private:
     friend void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
     friend void mouseCallback(GLFWwindow* window, double xpos, double ypos);
@@ -54,6 +66,7 @@ private:
     static float deltaTime;
 
     bool paused;
+    bool saveSelectionActive = true;
 
     Settings settings{};
 
@@ -66,6 +79,8 @@ private:
     yc::world::World* world;
     Player* player;
     Persistence* persistence;
+
+    SaveSystem saveSystem;
 };
 
 }

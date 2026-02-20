@@ -5,6 +5,7 @@
 #include <GLFW/glfw3.h>
 #include "gui/game_scene.h"
 #include "gui/pause_scene.h"
+#include "gui/save_select_scene.h"
 #include "game_manager.h"
 
 namespace yc::gui {
@@ -31,6 +32,7 @@ private:
 
     std::shared_ptr<GameScene> gameScene;
     std::shared_ptr<PauseScene> pauseScene;
+    std::shared_ptr<SaveSelectScene> saveSelectScene;
     yc::GameManager* gameManager = nullptr;
 };
 

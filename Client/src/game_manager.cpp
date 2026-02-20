@@ -216,4 +216,12 @@ void GameManager::applySettings(const Settings& settings) {
     }
 }
 
+void GameManager::setSimulationRunning(bool value) {
+    if (value) {
+        startSimulation();
+    } else {
+        stopSimulation();
+    }
+}
+
 }

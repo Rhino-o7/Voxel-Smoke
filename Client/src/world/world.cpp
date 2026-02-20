@@ -421,6 +421,21 @@ World::RayCastResult World::raycastCheck(const glm::vec3& position, const glm::v
     return result;
 }
 
+void World::clearChunks() {
+    chunks.clear();
+    while (!shouldBeUnloadedChunks.empty()) {
+        shouldBeUnloadedChunks.pop();
+    }
+}
+
+void World::setChimneyEmitters(const std::vector<ChimneySource>& emitters) {
+    chimneyEmitters = emitters;
+}
+
+void World::clearChimneyEmitters() {
+    chimneyEmitters.clear();
+}
+
 
 
 

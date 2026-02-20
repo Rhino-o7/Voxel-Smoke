@@ -76,6 +76,13 @@ public:
     const yc::world::CropExposureMap& getCropExposureByBlock() const { return cropExposureByBlock; }
     float getCropHealthPercent() const;
 
+    double getTimeScale() const { return clock.getTimeScale(); }
+    float getExposureScale() const { return exposureScale; }
+    void setTimeScale(double value) { clock.setTimeScale(value); }
+    void setSimTimeSec(double value) { clock.setSimTimeSec(value); }
+    void setExposureScale(float value) { exposureScale = value; }
+    void setSimulationRunning(bool value);
+
 private:
     void updateCropExposure(double simDtSec);
 

@@ -104,12 +104,13 @@ namespace yc {
         glfwSetFramebufferSizeCallback(window, sizeCallback);
         glfwSetScrollCallback(window, scrollCallback);
 
-        // disable cursor
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        // start in save selection mode
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
         Resource::Load();
 
-        persistence = new Persistence();
+        saveSystem.openOrCreate("default");
+        persistence = new Persistence(saveSystem.getPaths().regionsRoot.string());
 
         gui.init(window);
 
@@ -118,6 +119,7 @@ namespace yc {
 
         player = new Player(50.0f, world);
         player->init();
+        player->getCamera()->setFovDeg(settings.camera.fovDeg);
 
         gameManager.init(world, player);
         gameManager.applySettings(settings);
@@ -150,9 +152,11 @@ namespace yc {
         // Keep existing render dt (used for FPS display / movement baseline)
         Application::deltaTime = static_cast<float>(realDt);
 
-        gameManager.update(realDt);
+        if (!saveSelectionActive) {
+            gameManager.update(realDt);
+        }
 
-        if (!paused) {
+        if (!paused && !saveSelectionActive) {
             if (glfwGetKey(window, GLFW_KEY_F5) == GLFW_PRESS) {
                 world->reloadChunks();
             }
@@ -197,6 +201,10 @@ namespace yc {
     void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
         Application* app = (Application*)glfwGetWindowUserPointer(window);
 
+        if (app->isSaveSelectionActive()) {
+            return;
+        }
+
         if (action == GLFW_PRESS && key == GLFW_KEY_T) {
             app->gameManager.toggleSimulation();
         }
@@ -207,7 +215,7 @@ namespace yc {
             }
 
             if (glfwGetKey(app->window, GLFW_KEY_F1) == GLFW_PRESS) {
-                app->world->saveChunks();
+                app->saveCurrentGame();
             }
 
             if (IsChimneySelected(app)) {
@@ -242,6 +250,10 @@ namespace yc {
     void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
         Application* app = (Application*)glfwGetWindowUserPointer(window);
 
+        if (app->isSaveSelectionActive()) {
+            return;
+        }
+
         static float lastX = Application::Width / 2;
         static float lastY = Application::Height / 2;
 
@@ -265,6 +277,10 @@ namespace yc {
     // Block Place/Break
     void mouseButtonCallBack(GLFWwindow* window, int button, int action, int mods) {
         Application* app = (Application*)glfwGetWindowUserPointer(window);
+
+        if (app->isSaveSelectionActive()) {
+            return;
+        }
 
         if (!app->paused) {
             if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
@@ -310,6 +326,10 @@ namespace yc {
     void scrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
         Application* app = (Application*)glfwGetWindowUserPointer(window);
 
+        if (app->isSaveSelectionActive()) {
+            return;
+        }
+
         if (!app->paused) {
             const bool altPressed = glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS
                 || glfwGetKey(window, GLFW_KEY_RIGHT_ALT) == GLFW_PRESS;
@@ -340,6 +360,9 @@ namespace yc {
     }
 
     void Application::pauseGame() {
+        if (saveSelectionActive) {
+            return;
+        }
         paused = true;
         gameManager.pauseTime();
         gui.pause(this);
@@ -347,6 +370,9 @@ namespace yc {
     }
 
     void Application::resumeGame() {
+        if (saveSelectionActive) {
+            return;
+        }
         paused = false;
         gameManager.resumeTime();
         gui.resume();
@@ -354,7 +380,7 @@ namespace yc {
     }
 
     void Application::terminate() {
-        world->saveChunks();
+        saveCurrentGame();
         glfwTerminate();
     }
 
@@ -364,5 +390,68 @@ namespace yc {
 
     int32_t Application::Width;
     int32_t Application::Height;
+
+    bool Application::createNewSave(const std::string& name) {
+        if (!saveSystem.createNew(name)) {
+            return false;
+        }
+
+        world->clearChunks();
+        world->clearChimneyEmitters();
+        persistence->reset(saveSystem.getPaths().regionsRoot.string());
+
+        gameManager.setSimTimeSec(0.0);
+        gameManager.setSimulationRunning(false);
+
+        return true;
+    }
+
+    bool Application::loadSave(const std::string& name) {
+        if (!saveSystem.openOrCreate(name)) {
+            return false;
+        }
+
+        world->clearChunks();
+        world->clearChimneyEmitters();
+        persistence->reset(saveSystem.getPaths().regionsRoot.string());
+
+        if (saveSystem.hasSaveData()) {
+            const bool loaded = saveSystem.loadGame(settings, gameManager, *world);
+            if (!loaded) {
+                return false;
+            }
+            gameManager.loadWindCsv(settings.game.windCsvPath);
+        } else {
+            gameManager.setSimTimeSec(0.0);
+            gameManager.setSimulationRunning(false);
+            gameManager.applySettings(settings);
+        }
+
+        if (player) {
+            player->getCamera()->setFovDeg(settings.camera.fovDeg);
+        }
+
+        return true;
+    }
+
+    bool Application::deleteSave(const std::string& name) {
+        return saveSystem.deleteSave(name);
+    }
+
+    std::vector<std::string> Application::listSaves() const {
+        return saveSystem.listSaves();
+    }
+
+    void Application::saveCurrentGame() {
+        world->saveChunks();
+        saveSystem.saveGame(settings, gameManager, *world);
+    }
+
+    void Application::setSaveSelectionActive(bool value) {
+        saveSelectionActive = value;
+        paused = false;
+        gui.resume();
+        glfwSetInputMode(window, GLFW_CURSOR, value ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
+    }
 
 }

@@ -1,6 +1,7 @@
 #include "camera.h"
 #include "application.h"
 #include <glm/gtc/matrix_transform.hpp>
+#include <algorithm>
 
 namespace yc {
 
@@ -15,9 +16,15 @@ void Camera::init() {
     updateMatrix();
 }
 
+void Camera::setFovDeg(float value) {
+    m_fovDeg = std::clamp(value, 10.0f, 140.0f);
+    update();
+    updateMatrix();
+}
+
 void Camera::update() {
     float screenRatio = 1.0f * Application::Width / Application::Height;
-    m_projectionMatrix = glm::perspective(glm::radians(45.0f), screenRatio, 0.1f, 1000.0f);
+    m_projectionMatrix = glm::perspective(glm::radians(m_fovDeg), screenRatio, 0.1f, 1000.0f);
 }
 
 glm::mat4 Camera::getViewMatrix() const {

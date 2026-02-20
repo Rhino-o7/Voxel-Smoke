@@ -27,6 +27,8 @@ public:
         timeScale = 1.0;
     }
 
+    void setSimTimeSec(double value) { simTimeSec = value; }
+
 private:
     double simTimeSec = 0.0;
     double timeScale = 1.0;

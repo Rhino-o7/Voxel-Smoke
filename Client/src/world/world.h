@@ -94,6 +94,10 @@ public:
     void setExposureScale(float value) { exposureScale = value; }
     float getExposureScale() const { return exposureScale; }
 
+    void clearChunks();
+    void setChimneyEmitters(const std::vector<ChimneySource>& emitters);
+    void clearChimneyEmitters();
+
 private:
     std::unordered_map<glm::ivec2, std::shared_ptr<Chunk>, HashChunkCoord> chunks;
     std::queue<std::shared_ptr<Chunk>> shouldBeUnloadedChunks;

@@ -22,6 +22,10 @@ struct Settings {
         int maxChunksLoadPerFrame = 2;
     } world;
 
+    struct CameraSettings {
+        float fovDeg = 70.0f;
+    } camera;
+
     struct ChimneySettings {
         int height = 20;
         int radius = 4;

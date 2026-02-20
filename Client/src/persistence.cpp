@@ -9,14 +9,6 @@ namespace yc {
 
 namespace fs = std::filesystem;
 
-static fs::path GetWorldFolderPath() {
-    // Use the process working directory so behavior is explicit and debuggable.
-    // (If you want it relative to the EXE, we can change this to use argv[0] / GetModuleFileName.)
-    return fs::absolute(fs::path(Persistence::WorldFolder));
-}
-
-const std::string Persistence::WorldFolder = "save/";
-
 const size_t ChunkSize = yc::world::Chunk::Volume * sizeof(yc::world::BlockData);
 const size_t RegionHeaderSize = sizeof(int16_t) + sizeof(int16_t) * 32 * 32;
 
@@ -24,7 +16,7 @@ static int32_t FloorDiv32(int32_t v) {
     return (v >= 0) ? (v / 32) : ((v + 1) / 32 - 1);
 }
 
-Persistence::Persistence() {}
+Persistence::Persistence(const std::string& folder) : worldFolder(folder) {}
 
 Persistence::~Persistence() {
     for (auto& [regionCoord, region] : this->regions) {
@@ -33,6 +25,25 @@ Persistence::~Persistence() {
         }
         region->file.reset();
     }
+}
+
+void Persistence::setWorldFolder(const std::string& folder) {
+    worldFolder = folder;
+}
+
+void Persistence::reset(const std::string& folder) {
+    for (auto& [regionCoord, region] : this->regions) {
+        if (region->file && region->file->is_open()) {
+            region->file->close();
+        }
+        region->file.reset();
+    }
+    regions.clear();
+    worldFolder = folder;
+}
+
+fs::path Persistence::getWorldFolderPath() const {
+    return fs::absolute(fs::path(worldFolder));
 }
 
 bool Persistence::ensureRegionFileOpen(const glm::ivec2& regionCoord, const std::shared_ptr<Region>& region) {
@@ -44,10 +55,10 @@ bool Persistence::ensureRegionFileOpen(const glm::ivec2& regionCoord, const std:
         return true;
     }
 
-    const fs::path worldFolder = GetWorldFolderPath();
-    fs::create_directories(worldFolder);
+    const fs::path worldFolderPath = getWorldFolderPath();
+    fs::create_directories(worldFolderPath);
 
-    const fs::path filePath = worldFolder / getRegionFileName(regionCoord);
+    const fs::path filePath = worldFolderPath / getRegionFileName(regionCoord);
 
     if (!fs::exists(filePath)) {
         std::ofstream newFile(filePath, std::ios::binary | std::ios::out | std::ios::trunc);
@@ -84,10 +95,10 @@ void Persistence::loadRegion(const glm::ivec2& regionCoord) {
 
     const std::string fileName = getRegionFileName(regionCoord);
 
-    const fs::path worldFolder = GetWorldFolderPath();
-    fs::create_directories(worldFolder); // IMPORTANT: ensure save/ exists
+    const fs::path worldFolderPath = getWorldFolderPath();
+    fs::create_directories(worldFolderPath); // IMPORTANT: ensure save dir exists
 
-    const fs::path filePath = worldFolder / fileName;
+    const fs::path filePath = worldFolderPath / fileName;
 
     // Create the file if missing
     if (!fs::exists(filePath)) {
@@ -177,7 +188,7 @@ void Persistence::saveChunk(std::shared_ptr<yc::world::Chunk> chunk) {
 
     const auto& region = this->regions[regionCoord];
     if (!ensureRegionFileOpen(regionCoord, region)) {
-        std::cout << "ERROR: Region not open for save: " << (WorldFolder + getRegionFileName(regionCoord)) << "\n";
+        std::cout << "ERROR: Region not open for save: " << (worldFolder + getRegionFileName(regionCoord)) << "\n";
         return;
     }
 

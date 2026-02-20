@@ -20,6 +20,8 @@ public:
     float getPitch() const;
     void setOrientation(float pitch, float yaw);
     float getZoom() const;
+    float getFovDeg() const { return m_fovDeg; }
+    void setFovDeg(float value);
     glm::vec3 getRight() const;
     glm::vec3 getFront() const;
     glm::vec3 getPosition() const;
@@ -32,6 +34,7 @@ private:
     float m_zoom;
     float m_yaw;
     float m_pitch;
+    float m_fovDeg = 45.0f;
     glm::vec3 m_right;
     glm::vec3 m_front;
     glm::mat4 m_viewMatrix;

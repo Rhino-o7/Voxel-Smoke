@@ -3,6 +3,7 @@
 #include <string>
 #include <fstream>
 #include <unordered_map>
+#include <filesystem>
 #include "world/chunk.h"
 
 namespace yc {
@@ -16,12 +17,14 @@ struct Region {
 
 class Persistence {
 
-
-
 public:
-    Persistence();
+    explicit Persistence(const std::string& worldFolder = "save/");
     ~Persistence();
-    const static std::string WorldFolder;
+
+    void setWorldFolder(const std::string& folder);
+    const std::string& getWorldFolder() const { return worldFolder; }
+    void reset(const std::string& folder);
+
     void loadRegion(const glm::ivec2& regionCoord);
     void saveChunk(std::shared_ptr<yc::world::Chunk> chunk);
     void syncRegionFiles();
@@ -34,7 +37,9 @@ private:
     };
 
     bool ensureRegionFileOpen(const glm::ivec2& regionCoord, const std::shared_ptr<Region>& region);
+    std::filesystem::path getWorldFolderPath() const;
 
+    std::string worldFolder;
     std::unordered_map<glm::ivec2, std::shared_ptr<Region>, HashRegionCoord> regions;
 };
 
