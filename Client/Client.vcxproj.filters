@@ -93,9 +93,6 @@
     <ClCompile Include="src\world\wind_system.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\world\smoke_visualizer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\game_manager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -189,9 +186,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\world\pollution_system.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\world\smoke_visualizer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\game_clock.h">

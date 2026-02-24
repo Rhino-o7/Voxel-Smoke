@@ -126,7 +126,7 @@ namespace yc {
         gameManager.loadWindCsv(settings.game.windCsvPath);
 
         display.init();
-        display.setSmokeSettings(settings.smoke);
+        //display.setSmokeSettings(settings.smoke);
 
         // set icon
         int iconWidth, iconHeight, iconChannel;
@@ -178,7 +178,7 @@ namespace yc {
 
         gui.update(this, player, &gameManager);
 
-        display.drawFrame(player, world, gameManager.isSimulationRunning());
+        display.drawFrame(player, world);
 
         gui.render();
 

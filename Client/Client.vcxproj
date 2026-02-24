@@ -167,7 +167,6 @@
     <ClCompile Include="src\world\block.cpp" />
     <ClCompile Include="src\world\chunk.cpp" />
     <ClCompile Include="src\world\pollution_system.cpp" />
-    <ClCompile Include="src\world\smoke_visualizer.cpp" />
     <ClCompile Include="src\world\wind_system.cpp" />
     <ClCompile Include="src\world\world.cpp" />
     <ClCompile Include="src\world\world_generator.cpp" />
@@ -208,7 +207,6 @@
     <ClInclude Include="src\world\block.h" />
     <ClInclude Include="src\world\chunk.h" />
     <ClInclude Include="src\world\pollution_system.h" />
-    <ClInclude Include="src\world\smoke_visualizer.h" />
     <ClInclude Include="src\world\wind_system.h" />
     <ClInclude Include="src\world\world.h" />
     <ClInclude Include="src\world\world_generator.h" />

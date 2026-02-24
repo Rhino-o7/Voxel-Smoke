@@ -7,7 +7,6 @@
 #include "graphic/block_outline.h"
 #include "player.h"
 #include "world/world.h"
-#include "settings.h"
 
 namespace yc::graphic {
 
@@ -22,17 +21,13 @@ public:
 
     void prepareFrame();
 
-    void drawFrame(yc::Player* player, yc::world::World* world, bool renderSmoke);
+    void drawFrame(yc::Player* player, yc::world::World* world);
 
     void nextFrame();
 
     void toggleLineMode();
 
-    void setSmokeSettings(const yc::Settings::SmokeSettings& settings);
-
 private:
-    void renderSmokeVolume(yc::Camera* camera, yc::world::World* world, bool useWeightedOIT);
-
     glm::vec3 clearColor = { 0.2f, 0.3f, 0.3f };
 
     bool lineMode;
@@ -43,9 +38,6 @@ private:
     unsigned int accumTexture;
     unsigned int revealTexture;
     unsigned int quadVAO, quadVBO;
-    unsigned int cubeVAO, cubeVBO;
-
-    yc::Settings::SmokeSettings smokeSettings{};
 
     SkyBox skybox;
     BlockOutline blockOutline;
