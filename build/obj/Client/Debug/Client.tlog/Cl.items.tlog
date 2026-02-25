@@ -12,6 +12,7 @@ C:\Dev\GitRepos\Voxel-Pollution\Client\src\graphic\crosshair.cpp;C:\Dev\GitRepos
 C:\Dev\GitRepos\Voxel-Pollution\Client\src\graphic\display.cpp;C:\Dev\GitRepos\Voxel-Pollution\build\obj\Client\Debug\display.obj
 C:\Dev\GitRepos\Voxel-Pollution\Client\src\graphic\flora_vertex.cpp;C:\Dev\GitRepos\Voxel-Pollution\build\obj\Client\Debug\flora_vertex.obj
 C:\Dev\GitRepos\Voxel-Pollution\Client\src\graphic\skybox.cpp;C:\Dev\GitRepos\Voxel-Pollution\build\obj\Client\Debug\skybox.obj
+C:\Dev\GitRepos\Voxel-Pollution\Client\src\graphic\smoke_volume_renderer.cpp;C:\Dev\GitRepos\Voxel-Pollution\build\obj\Client\Debug\smoke_volume_renderer.obj
 C:\Dev\GitRepos\Voxel-Pollution\Client\src\gui\game_scene.cpp;C:\Dev\GitRepos\Voxel-Pollution\build\obj\Client\Debug\game_scene.obj
 C:\Dev\GitRepos\Voxel-Pollution\Client\src\gui\gui.cpp;C:\Dev\GitRepos\Voxel-Pollution\build\obj\Client\Debug\gui.obj
 C:\Dev\GitRepos\Voxel-Pollution\Client\src\gui\pause_scene.cpp;C:\Dev\GitRepos\Voxel-Pollution\build\obj\Client\Debug\pause_scene.obj
@@ -24,7 +25,6 @@ C:\Dev\GitRepos\Voxel-Pollution\Client\src\save_system.cpp;C:\Dev\GitRepos\Voxel
 C:\Dev\GitRepos\Voxel-Pollution\Client\src\world\block.cpp;C:\Dev\GitRepos\Voxel-Pollution\build\obj\Client\Debug\block.obj
 C:\Dev\GitRepos\Voxel-Pollution\Client\src\world\chunk.cpp;C:\Dev\GitRepos\Voxel-Pollution\build\obj\Client\Debug\chunk.obj
 C:\Dev\GitRepos\Voxel-Pollution\Client\src\world\pollution_system.cpp;C:\Dev\GitRepos\Voxel-Pollution\build\obj\Client\Debug\pollution_system.obj
-C:\Dev\GitRepos\Voxel-Pollution\Client\src\world\smoke_visualizer.cpp;C:\Dev\GitRepos\Voxel-Pollution\build\obj\Client\Debug\smoke_visualizer.obj
 C:\Dev\GitRepos\Voxel-Pollution\Client\src\world\wind_system.cpp;C:\Dev\GitRepos\Voxel-Pollution\build\obj\Client\Debug\wind_system.obj
 C:\Dev\GitRepos\Voxel-Pollution\Client\src\world\world.cpp;C:\Dev\GitRepos\Voxel-Pollution\build\obj\Client\Debug\world.obj
 C:\Dev\GitRepos\Voxel-Pollution\Client\src\world\world_generator.cpp;C:\Dev\GitRepos\Voxel-Pollution\build\obj\Client\Debug\world_generator.obj

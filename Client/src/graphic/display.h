@@ -5,6 +5,7 @@
 #include "graphic/crosshair.h"
 #include "graphic/skybox.h"
 #include "graphic/block_outline.h"
+#include "graphic/smoke_volume_renderer.h"
 #include "player.h"
 #include "world/world.h"
 
@@ -42,6 +43,7 @@ private:
     SkyBox skybox;
     BlockOutline blockOutline;
     CrossHair crosshair;
+    SmokeVolumeRenderer smokeRenderer;
 };
 
 }

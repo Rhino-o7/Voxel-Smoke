@@ -33,6 +33,7 @@ void GameManager::update(double realDtSec) {
 
     if (world) {
         world->setWindState(currentWindState);
+        world->setSimTimeSec(clock.getSimTimeSec());
     }
 
     updateCropExposure(simDtSec);
@@ -199,6 +200,7 @@ void GameManager::applySettings(const Settings& settings) {
     if (world) {
         world->setSettings(settings.world);
         world->setExposureScale(settings.exposure.exposureScale);
+        world->setSmokeSettings(settings.smoke);
     }
 
     chimneySettings.height = settings.chimney.height;

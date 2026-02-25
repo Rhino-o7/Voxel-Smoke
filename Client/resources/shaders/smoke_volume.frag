@@ -8,9 +8,23 @@ in vec3 vWorldPos;
 uniform vec3 uCameraPos;
 uniform vec3 uBoxMin;
 uniform vec3 uBoxMax;
+uniform mat4 projection_view;
 
 uniform float uWindSpeed;
 uniform vec2 uWindDirXZ;
+uniform float uPrevWindSpeed;
+uniform vec2 uPrevWindDirXZ;
+uniform float uWindChangeTimeSec;
+uniform float uWindTransitionSec;
+uniform float uSimTimeSec;
+uniform float uVoxelSize;
+uniform float uVoxelThreshold;
+uniform float uDissipationHalfLifeSec;
+uniform float uMaxDownwind;
+uniform float uDownwindFade;
+uniform float uWindVariationScale;
+uniform float uWindSpeedVariation;
+uniform float uWindDirVariationDeg;
 
 uniform int uSourceCount;
 uniform vec4 uSourcePosH[32];
@@ -37,7 +51,7 @@ float weight(float z, float a) {
 }
 
 float sampleGaussian(vec3 p) {
-    if (uWindSpeed <= 1e-6) return 0.0;
+    float windSpeed = max(uWindSpeed, 1e-6);
 
     float total = 0.0;
 
@@ -54,6 +68,30 @@ float sampleGaussian(vec3 p) {
 
         float downwind = dot(r, w);
         if (downwind <= 0.0) continue;
+        float fadeWidth = max(uDownwindFade, 0.01);
+        float downwindFade = 1.0 - smoothstep(uMaxDownwind, uMaxDownwind + fadeWidth, downwind);
+        if (downwindFade <= 0.0) continue;
+
+        float age = downwind / windSpeed;
+        float tSinceChange = uSimTimeSec - uWindChangeTimeSec;
+        float transition = max(uWindTransitionSec, 0.01);
+        float blend = smoothstep(-transition, transition, age - tSinceChange);
+        vec2 wPrev = normalize(uPrevWindDirXZ);
+        vec2 wBlendRaw = mix(uWindDirXZ, wPrev, blend);
+        vec2 wBlend = length(wBlendRaw) > 1e-6 ? normalize(wBlendRaw) : normalize(uWindDirXZ);
+        float speedBlend = mix(uWindSpeed, uPrevWindSpeed, blend);
+
+        w = wBlend;
+        windSpeed = max(speedBlend, 1e-6);
+
+        downwind = dot(r, w);
+        if (downwind <= 0.0) continue;
+        downwindFade = 1.0 - smoothstep(uMaxDownwind, uMaxDownwind + fadeWidth, downwind);
+        if (downwindFade <= 0.0) continue;
+
+        age = downwind / windSpeed;
+        float halfLife = max(uDissipationHalfLifeSec, 0.01);
+        float decay = pow(0.5, max(age, 0.0) / halfLife);
 
         vec2 perp = vec2(-w.y, w.x);
         float crosswind = dot(r, perp);
@@ -72,17 +110,25 @@ float sampleGaussian(vec3 p) {
         float z = rel.y;
         float gz = exp(-((z - srcH) * (z - srcH)) / (2.0 * sigmaZ * sigmaZ));
 
-        float dilution = (uWindSpeed * sigmaY * sigmaZ);
-        float C = (Q / (2.0 * PI * dilution)) * gy * gz;
+        float dilution = (windSpeed * sigmaY * sigmaZ);
+        float phase = uSimTimeSec * max(uWindVariationScale, 0.01);
+        float dirVar = uWindDirVariationDeg * 0.01745329252;
+        float turb = 0.5 + 0.5 * sin(dot(p.xz, vec2(0.08, 0.11)) + p.y * 0.03 + phase + dirVar);
+        float jitter = mix(1.0 - uWindSpeedVariation, 1.0 + uWindSpeedVariation, turb);
+        float C = (Q / (2.0 * PI * dilution)) * gy * gz * jitter;
 
-        total += C;
+        total += C * decay * downwindFade;
     }
 
     return total;
 }
 
 bool intersectAABB(vec3 ro, vec3 rd, vec3 bmin, vec3 bmax, out float tNear, out float tFar) {
-    vec3 inv = 1.0 / rd;
+    vec3 safeRd = vec3(
+        abs(rd.x) < 1e-6 ? (rd.x < 0.0 ? -1e-6 : 1e-6) : rd.x,
+        abs(rd.y) < 1e-6 ? (rd.y < 0.0 ? -1e-6 : 1e-6) : rd.y,
+        abs(rd.z) < 1e-6 ? (rd.z < 0.0 ? -1e-6 : 1e-6) : rd.z);
+    vec3 inv = 1.0 / safeRd;
     vec3 t0 = (bmin - ro) * inv;
     vec3 t1 = (bmax - ro) * inv;
     vec3 tmin = min(t0, t1);
@@ -105,35 +151,95 @@ void main() {
     float distance = tFar - tNear;
     if (distance <= 0.0) discard;
 
-    float jitter = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
-    int steps = max(uStepCount, 1);
-    float stepSize = distance / float(steps);
+    float minStep = max(uVoxelSize, 0.01);
+    // Align a stable world grid origin to the voxel size so voxels do not shift
+    vec3 worldOrigin = floor(uBoxMin / minStep) * minStep;
+    vec3 boxSize = max(uBoxMax - worldOrigin, vec3(minStep));
+    ivec3 gridDim = ivec3(max(ivec3(1), ivec3(ceil(boxSize / minStep))));
+    int maxSteps = max(int(ceil(distance / minStep)) + 1, max(uStepCount, 1));
 
-    float transmittance = 1.0;
+    vec3 pos = ro + rd * tNear;
+    vec3 gridPos = (pos - worldOrigin) / minStep;
+    ivec3 voxel = ivec3(floor(gridPos));
+    ivec3 stepDir = ivec3(sign(rd));
+    vec3 safeRd = vec3(
+        abs(rd.x) < 1e-6 ? (rd.x < 0.0 ? -1e-6 : 1e-6) : rd.x,
+        abs(rd.y) < 1e-6 ? (rd.y < 0.0 ? -1e-6 : 1e-6) : rd.y,
+        abs(rd.z) < 1e-6 ? (rd.z < 0.0 ? -1e-6 : 1e-6) : rd.z);
+    vec3 invRd = 1.0 / safeRd;
+    vec3 tDelta = abs(vec3(minStep) * invRd);
+
+    vec3 nextBoundary;
+    nextBoundary.x = (stepDir.x > 0 ? (float(voxel.x) + 1.0) : float(voxel.x)) * minStep + worldOrigin.x;
+    nextBoundary.y = (stepDir.y > 0 ? (float(voxel.y) + 1.0) : float(voxel.y)) * minStep + worldOrigin.y;
+    nextBoundary.z = (stepDir.z > 0 ? (float(voxel.z) + 1.0) : float(voxel.z)) * minStep + worldOrigin.z;
+
+    vec3 tMax = (nextBoundary - ro) * invRd;
+    tMax = max(tMax, vec3(tNear));
+    voxel = clamp(voxel, ivec3(0), gridDim - ivec3(1));
+
+    bool hit = false;
     vec3 color = vec3(0.0);
+    float tHit = tNear;
+    float t = tNear;
 
-    for (int i = 0; i < steps; ++i) {
-        float t = tNear + (float(i) + jitter) * stepSize;
-        vec3 pos = ro + rd * t;
+    for (int i = 0; i < maxSteps; ++i) {
+        if (any(lessThan(voxel, ivec3(0))) || any(greaterThanEqual(voxel, gridDim))) {
+            break;
+        }
+        vec3 voxelPos = (vec3(voxel) + vec3(0.5)) * minStep + uBoxMin;
 
-        float density = sampleGaussian(pos);
-        float alpha = 1.0 - exp(-density * uDensityScale * stepSize);
+        float density = sampleGaussian(voxelPos);
+        if (density >= uVoxelThreshold) {
+            float intensity = clamp(density * uDensityScale, 0.0, 1.0);
+            float gray = dot(uSmokeColor, vec3(0.3333));
+            vec3 lowColor = mix(vec3(gray), vec3(0.0), 0.5);
+            color = mix(lowColor, uSmokeColor, intensity);
+            hit = true;
+            tHit = t;
+            break;
+        }
 
-        color += transmittance * alpha * uSmokeColor;
-        transmittance *= (1.0 - alpha);
+        if (tMax.x < tMax.y) {
+            if (tMax.x < tMax.z) {
+                t = tMax.x;
+                voxel.x += stepDir.x;
+                tMax.x += tDelta.x;
+            } else {
+                t = tMax.z;
+                voxel.z += stepDir.z;
+                tMax.z += tDelta.z;
+            }
+        } else {
+            if (tMax.y < tMax.z) {
+                t = tMax.y;
+                voxel.y += stepDir.y;
+                tMax.y += tDelta.y;
+            } else {
+                t = tMax.z;
+                voxel.z += stepDir.z;
+                tMax.z += tDelta.z;
+            }
+        }
 
-        if (transmittance < 0.02) break;
+        if (t > tFar) {
+            break;
+        }
     }
 
-    float finalAlpha = 1.0 - transmittance;
-    if (finalAlpha <= 0.001) discard;
+    if (!hit) discard;
+
+    vec3 hitPos = ro + rd * tHit;
+    vec4 clip = projection_view * vec4(hitPos, 1.0);
+    float ndcDepth = clip.z / clip.w;
+    gl_FragDepth = ndcDepth * 0.5 + 0.5;
 
     if (uUseWeightedOIT != 0) {
-        float w = weight(gl_FragCoord.z, finalAlpha);
-        accum = vec4(color, finalAlpha) * w;
-        reveal = finalAlpha;
+        float w = weight(gl_FragDepth, 1.0);
+        accum = vec4(color, 1.0) * w;
+        reveal = 1.0;
     } else {
-        accum = vec4(color, finalAlpha);
-        reveal = finalAlpha;
+        accum = vec4(color, 1.0);
+        reveal = 1.0;
     }
 }

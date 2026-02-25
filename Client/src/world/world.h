@@ -85,6 +85,12 @@ public:
     const WindState& getWindState() const { return windState; }
     const std::vector<ChimneySource>& getChimneyEmitters() const { return chimneyEmitters; }
 
+    void setSimTimeSec(double value) { simTimeSec = value; }
+    double getSimTimeSec() const { return simTimeSec; }
+
+    void setSmokeSettings(const yc::Settings::SmokeSettings& value) { smokeSettings = value; }
+    const yc::Settings::SmokeSettings& getSmokeSettings() const { return smokeSettings; }
+
     void setCropExposureMap(const CropExposureMap* map);
     double getCropExposureAtBlock(const BlockPos& blockPos) const;
 
@@ -106,12 +112,14 @@ private:
     Persistence* persistence;
 
     WindState windState{};
+    double simTimeSec = 0.0;
 
     std::vector<ChimneySource> chimneyEmitters;
 
     const CropExposureMap* cropExposureMap = nullptr;
 
     yc::Settings::WorldSettings settings{};
+    yc::Settings::SmokeSettings smokeSettings{};
     float exposureScale;
 };
 

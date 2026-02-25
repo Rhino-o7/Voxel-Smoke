@@ -39,6 +39,17 @@ struct Settings {
         float colorG = 0.7f;
         float colorB = 0.4f;
 
+        float voxelSize = 1.0f;
+        float voxelThreshold = 0.0002f;
+        float dissipationHalfLifeSec = 30.0f;
+        float maxRenderDistance = 500.0f;
+        float windSmoothingSec = 4.0f;
+        float windTransitionSec = 6.0f;
+        float windSpeedVariation = 0.25f;
+        float windDirVariationDeg = 6.0f;
+        float windVariationScale = 0.1f;
+        float downwindFade = 30.0f;
+
         float boxDownwind = 200.0f;
         float boxCrosswind = 50.0f;
         float boxVertical = 50.0f;

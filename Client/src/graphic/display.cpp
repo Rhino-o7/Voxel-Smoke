@@ -24,6 +24,7 @@ void Display::init() {
     crosshair.init();
     skybox.init();
     blockOutline.init();
+    smokeRenderer.init();
 
     glGenFramebuffers(1, &opaqueFBO);
     glGenFramebuffers(1, &transparentFBO);
@@ -131,6 +132,12 @@ void Display::drawFrame(yc::Player* player, yc::world::World* world) {
     // render opaque
     world->renderOpaque(player->getCamera());
     world->renderFlora(player->getCamera());
+
+    smokeRenderer.render(player->getCamera(),
+        world->getWindState(),
+        world->getChimneyEmitters(),
+        world->getSmokeSettings(),
+        world->getSimTimeSec());
 
     // render transparent
     glDepthMask(GL_FALSE);
