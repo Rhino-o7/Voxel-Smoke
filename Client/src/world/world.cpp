@@ -1,6 +1,10 @@
 #include <iostream>
 #include <atomic>
 #include <cmath>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <functional>
 #include "glm/gtc/matrix_transform.hpp"
 #include "world/world.h"
 #include "util/math.h"
@@ -28,6 +32,45 @@ World::World(Persistence* persistence) : generator(0), persistence(persistence) 
 
 void World::init()
 {
+    // Start a small worker pool for background jobs
+    const unsigned int threadCount = std::max(1u, std::thread::hardware_concurrency() - 1);
+    stopWorkers.store(false);
+    for (unsigned int i = 0; i < threadCount; ++i) {
+        workerThreads.emplace_back([this]() {
+            while (!stopWorkers.load()) {
+                std::function<void()> job;
+                {
+                    std::unique_lock<std::mutex> lock(this->jobQueueMutex);
+                    this->jobQueueCv.wait_for(lock, std::chrono::milliseconds(50), [this]{ return !this->jobQueue.empty() || stopWorkers.load(); });
+                    if (stopWorkers.load() && this->jobQueue.empty()) return;
+                    if (this->jobQueue.empty()) continue;
+                    job = std::move(this->jobQueue.front());
+                    this->jobQueue.pop();
+                }
+                try {
+                    job();
+                } catch (...) {
+                    // swallow exceptions from jobs
+                }
+            }
+        });
+    }
+}
+
+World::~World() {
+    stopWorkers.store(true);
+    jobQueueCv.notify_all();
+    for (auto& t : workerThreads) {
+        if (t.joinable()) t.join();
+    }
+}
+
+void World::enqueueJob(const std::function<void()>& job) {
+    {
+        std::lock_guard<std::mutex> lock(this->jobQueueMutex);
+        jobQueue.push(job);
+    }
+    jobQueueCv.notify_one();
 }
 
 void World::update(yc::Camera* camera) {
@@ -45,7 +88,12 @@ void World::update(yc::Camera* camera) {
 
     int32_t unloadedChunkCount = 0;
     for (const auto& [chunkCoord, chunk]: this->chunks) {
+        // Don't unload chunks that are currently being built or have staging data ready
         if (Chunk::DistanceTo(chunkCoord, cameraChunkCoord) > viewDistance && maxUnloadChunkPerFrame > unloadedChunkCount) {
+            if (chunk->isCurrentlyBuilding() || chunk->hasStagingData()) {
+                // keep it until build/upload finishes
+                continue;
+            }
             shouldBeUnloadedChunks.push(chunk);
             unloadedChunkCount += 1;
         }
@@ -89,6 +137,11 @@ void World::update(yc::Camera* camera) {
     }
 
     for (const auto& [chunkCoord, chunk]: this->chunks) {
+        // If chunk has staging data ready, upload it before attempting new builds.
+        if (chunk->hasStagingData()) {
+            chunk->uploadMeshFromStaging();
+            // after upload, it's safe to possibly schedule new build if prepareToBuildMesh was called
+        }
         chunk->buildMeshIfNeeded();
     }
 }

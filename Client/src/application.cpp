@@ -392,6 +392,9 @@ namespace yc {
     int32_t Application::Height;
 
     bool Application::createNewSave(const std::string& name) {
+        // Ensure current game is saved before creating a new save slot
+        saveCurrentGame();
+
         if (!saveSystem.createNew(name)) {
             return false;
         }
@@ -407,6 +410,9 @@ namespace yc {
     }
 
     bool Application::loadSave(const std::string& name) {
+        // Attempt to save current game before switching to another save
+        saveCurrentGame();
+
         if (!saveSystem.openOrCreate(name)) {
             return false;
         }

@@ -1,4 +1,6 @@
-﻿  smoke_volume_renderer.cpp
+﻿  display.cpp
+  smoke_volume_renderer.cpp
+  Generating Code...
   Client.vcxproj -> C:\Dev\GitRepos\Voxel-Pollution\build\bin\Debug\Client.exe
   'pwsh.exe' is not recognized as an internal or external command,
   operable program or batch file.

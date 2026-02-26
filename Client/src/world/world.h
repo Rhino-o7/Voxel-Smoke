@@ -48,6 +48,7 @@ public:
     World(Persistence* persistence);
 
     void init();
+    ~World();
     void update(yc::Camera* camera);
 
     void renderOpaque(yc::Camera* camera);
@@ -70,6 +71,8 @@ public:
 
     void reloadChunks();
     void saveChunks();
+
+    // (removed) use detached threads from Chunk when needed
 
     void spawnTreeAt(const glm::ivec3& coord);
     void spawnChimneyAt(const glm::ivec3& coord, int height, int radius, double exitVelocity);
@@ -104,9 +107,21 @@ public:
     void setChimneyEmitters(const std::vector<ChimneySource>& emitters);
     void clearChimneyEmitters();
 
+    // Thread pool for background jobs (chunk CPU builds)
+    void enqueueJob(const std::function<void()>& job);
+
 private:
     std::unordered_map<glm::ivec2, std::shared_ptr<Chunk>, HashChunkCoord> chunks;
     std::queue<std::shared_ptr<Chunk>> shouldBeUnloadedChunks;
+
+    // Worker thread pool
+    std::vector<std::thread> workerThreads;
+    std::queue<std::function<void()>> jobQueue;
+    std::mutex jobQueueMutex;
+    std::condition_variable jobQueueCv;
+    std::atomic<bool> stopWorkers{false};
+
+    bool hasWorkerThreads() const { return !workerThreads.empty(); }
 
     WorldGenerator generator;
     Persistence* persistence;
