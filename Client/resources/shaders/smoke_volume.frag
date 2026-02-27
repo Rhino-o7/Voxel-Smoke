@@ -194,7 +194,18 @@ void main() {
             float intensity = clamp(density * uDensityScale, 0.0, 1.0);
             float gray = dot(uSmokeColor, vec3(0.3333));
             vec3 lowColor = mix(vec3(gray), vec3(0.0), 0.5);
-            color = mix(lowColor, uSmokeColor, intensity);
+            vec3 baseColor = mix(lowColor, uSmokeColor, intensity);
+
+            // Add a slight deterministic per-voxel tint so adjacent voxels are easier to
+            // distinguish. This uses a simple hash of the integer voxel coordinates.
+            vec3 vp = vec3(voxel);
+            float h1 = fract(sin(dot(vp, vec3(127.1, 311.7, 74.7))) * 43758.5453);
+            float h2 = fract(sin(dot(vp, vec3(269.5, 183.3, 246.1))) * 43758.5453);
+            vec3 tint = vec3(h1, h2, fract(h1 * h2));
+            float variationStrength = 0.12; // small variation amount
+            vec3 varied = baseColor * (1.0 + (tint - 0.5) * variationStrength);
+            color = clamp(varied, 0.0, 1.0);
+
             hit = true;
             tHit = t;
             break;

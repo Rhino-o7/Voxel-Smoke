@@ -113,12 +113,12 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)Client\src;$(SolutionDir)Client\deps;$(SolutionDir)VoxelEngineLib\src;$(SolutionDir)VoxelEngineLib\src\third_party\lodepng;$(SolutionDir)VoxelEngineLib\src\third_party\imgui;$(SolutionDir)VoxelEngineLib\src\third_party\glm;$(SolutionDir)VoxelEngineLib\src\third_party\glfw\include;$(SolutionDir)VoxelEngineLib\src\third_party\GLAD\include;$(SolutionDir)VoxelEngineLib\src\third_party\FrustumCulling;$(SolutionDir)VoxelEngineLib\src\third_party\FastNoiseLite;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Client\src;$(SolutionDir)Client\deps;$(SolutionDir)Client\src\third_party\lodepng;$(SolutionDir)Client\src\third_party\imgui;$(SolutionDir)Client\src\third_party\glm;$(SolutionDir)Client\src\third_party\glfw\include;$(SolutionDir)Client\src\third_party\GLAD\include;$(SolutionDir)Client\src\third_party\FrustumCulling;$(SolutionDir)Client\src\third_party\FastNoiseLite;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)VoxelEngineLib\src\third_party\glfw\lib-vc2022;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)Client\src\third_party\glfw\lib-vc2022;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>glfw3.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -131,12 +131,12 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)Client\src;$(SolutionDir)Client\deps;$(SolutionDir)VoxelEngineLib\src;$(SolutionDir)VoxelEngineLib\src\third_party\lodepng;$(SolutionDir)VoxelEngineLib\src\third_party\imgui;$(SolutionDir)VoxelEngineLib\src\third_party\glm;$(SolutionDir)VoxelEngineLib\src\third_party\glfw\include;$(SolutionDir)VoxelEngineLib\src\third_party\GLAD\include;$(SolutionDir)VoxelEngineLib\src\third_party\FrustumCulling;$(SolutionDir)VoxelEngineLib\src\third_party\FastNoiseLite;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Client\src;$(SolutionDir)Client\deps;$(SolutionDir)Client\src\third_party\lodepng;$(SolutionDir)Client\src\third_party\imgui;$(SolutionDir)Client\src\third_party\glm;$(SolutionDir)Client\src\third_party\glfw\include;$(SolutionDir)Client\src\third_party\GLAD\include;$(SolutionDir)Client\src\third_party\FrustumCulling;$(SolutionDir)Client\src\third_party\FastNoiseLite;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)VoxelEngineLib\src\third_party\glfw\lib-vc2022;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)Client\src\third_party\glfw\lib-vc2022;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>glfw3.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>

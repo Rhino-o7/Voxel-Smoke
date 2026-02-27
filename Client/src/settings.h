@@ -39,7 +39,7 @@ struct Settings {
         float colorG = 0.7f;
         float colorB = 0.4f;
 
-        float voxelSize = 1.0f;
+        float voxelSize = 2.0f;
         float voxelThreshold = 0.0002f;
         float dissipationHalfLifeSec = 30.0f;
         float maxRenderDistance = 500.0f;
