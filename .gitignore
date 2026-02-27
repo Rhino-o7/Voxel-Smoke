@@ -1,5 +1,8 @@
 .vs/
-.vs/*
+
+
+build/obj/
+
 
 *.user
 *.suo
