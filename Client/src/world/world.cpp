@@ -248,16 +248,22 @@ void World::saveChunks() {
 BlockData World::getBlockDataIfLoadedAt(const glm::ivec3& coord) {
     if (coord.y >= 0 && coord.y < 256) {
         glm::ivec2 chunkCoord = GetChunkCoordOf(coord);
-        auto iter = this->chunks.find(chunkCoord);
 
+        // shared lock for read access
+        std::shared_lock<std::shared_mutex> lock(this->chunksMutex);
+        auto iter = this->chunks.find(chunkCoord);
         if (iter != this->chunks.end()) {
+            // copy shared_ptr while holding lock so it stays valid after we release
             auto chunk = iter->second;
+            lock.unlock();
+
             return chunk->getBlockDataAt({
                 yc::util::PositiveMod(coord.x, Chunk::Length),
                 coord.y,
                 yc::util::PositiveMod(coord.z, Chunk::Width)
-            });
+                });
         }
+        // lock released on scope exit if not already unlocked
     }
 
     return { BlockType::NONE, BlockFaceDirection::NONE };

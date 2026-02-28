@@ -128,6 +128,13 @@ void SmokeVolumeRenderer::render(yc::Camera* camera,
     }
 
     const double dt = simTimeSec - lastSimTimeSec;
+    // If simulation time hasn't advanced (paused or stopped), skip rendering smoke so
+    // the visual disappears while paused. Update lastSimTimeSec so when time resumes
+    // we start blending from the correct simulation time.
+    if (dt <= 0.0) {
+        lastSimTimeSec = simTimeSec;
+        return;
+    }
     const glm::vec2 previousDir = smoothedWindDir;
     const float previousSpeed = smoothedWindSpeed;
     if (!hasWind || dt < 0.0) {

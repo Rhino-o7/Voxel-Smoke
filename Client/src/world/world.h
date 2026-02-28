@@ -5,6 +5,7 @@
 #include <vector>
 #include <glm/glm.hpp>
 #include <cstdint>
+#include <shared_mutex>
 
 #include "persistence.h"
 #include "world/world_generator.h"
@@ -136,6 +137,8 @@ private:
     yc::Settings::WorldSettings settings{};
     yc::Settings::SmokeSettings smokeSettings{};
     float exposureScale;
+
+    mutable std::shared_mutex chunksMutex;
 };
 
 }
