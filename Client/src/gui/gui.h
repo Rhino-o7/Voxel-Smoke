@@ -24,7 +24,9 @@ public:
 
     void render();
 
-    void pause(yc::Application* application);
+    void pause(yc::Application* application, PausePage page = PausePage::Main);
+
+    void setPausePage(PausePage page);
 
     void resume();
 

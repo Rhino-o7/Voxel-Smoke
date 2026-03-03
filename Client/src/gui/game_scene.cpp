@@ -89,21 +89,16 @@ void GameScene::render() {
 
     if (gameManager && player->getCurrentBlockType() == yc::world::BlockType::CHIMNEY) {
         const auto& chimney = gameManager->getChimneySettings();
-        const auto active = gameManager->getActiveChimneyParam();
-
-        auto marker = [active](yc::GameManager::ChimneyParam param) {
-            return active == param ? ">" : " ";
-        };
 
         ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y - 155), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
         ImGui::SetNextWindowBgAlpha(0.4);
         ImGui::Begin("chimney_settings", NULL, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar);
 
-        ImGui::Text("%s Height: %d", marker(yc::GameManager::ChimneyParam::Height), chimney.height);
-        ImGui::Text("%s Radius: %d", marker(yc::GameManager::ChimneyParam::Radius), chimney.radius);
-        ImGui::Text("%s Exit Vel: %.1f", marker(yc::GameManager::ChimneyParam::ExitVelocity), chimney.exitVelocity);
+        ImGui::Text("Height: %d", chimney.height);
+        ImGui::Text("Radius: %d", chimney.radius);
+        ImGui::Text("Exit Vel: %.1f", chimney.exitVelocity);
         ImGui::Separator();
-        ImGui::Text("C: Cycle  [ ] or -/+ (numpad +/-)");
+        ImGui::Text("Edit from menu (1)");
 
         ImGui::End();
     }

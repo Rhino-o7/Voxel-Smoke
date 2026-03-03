@@ -40,6 +40,13 @@ public:
 
     GameManager& getGameManager() { return gameManager; }
     const GameManager& getGameManager() const { return gameManager; }
+    yc::world::World* getWorld() { return world; }
+    const yc::world::World* getWorld() const { return world; }
+
+    Settings& getSettings() { return settings; }
+    const Settings& getSettings() const { return settings; }
+
+    void applyCurrentSettings();
 
     void terminate();
 

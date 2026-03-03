@@ -3,6 +3,7 @@
 #include <fstream>
 #include <vector>
 #include <algorithm>
+#include <cmath>
 
 namespace yc {
 
@@ -10,7 +11,7 @@ namespace fs = std::filesystem;
 
 namespace {
     constexpr uint32_t SaveMagic = 0x56534359; // "YCSV"
-    constexpr uint32_t SaveVersion = 2;
+    constexpr uint32_t SaveVersion = 3;
 
     struct SaveHeader {
         uint32_t magic = SaveMagic;
@@ -149,9 +150,13 @@ bool SaveSystem::saveGame(const Settings& settings, const GameManager& gameManag
         if (!WriteDouble(out, c.worldPos.x)) return false;
         if (!WriteDouble(out, c.worldPos.y)) return false;
         if (!WriteDouble(out, c.worldPos.z)) return false;
+        if (!WriteInt(out, c.baseBlockCoord.x)) return false;
+        if (!WriteInt(out, c.baseBlockCoord.y)) return false;
+        if (!WriteInt(out, c.baseBlockCoord.z)) return false;
         if (!WriteDouble(out, c.height)) return false;
         if (!WriteDouble(out, c.exitVelocity)) return false;
         if (!WriteDouble(out, c.radius)) return false;
+        if (!WriteU8(out, c.enabled ? 1 : 0)) return false;
     }
 
     const auto& cropExposure = gameManager.getCropExposureByBlock();
@@ -211,9 +216,27 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
         if (!ReadDouble(in, c.worldPos.x)) return false;
         if (!ReadDouble(in, c.worldPos.y)) return false;
         if (!ReadDouble(in, c.worldPos.z)) return false;
+        if (header.version >= 3) {
+            if (!ReadInt(in, c.baseBlockCoord.x)) return false;
+            if (!ReadInt(in, c.baseBlockCoord.y)) return false;
+            if (!ReadInt(in, c.baseBlockCoord.z)) return false;
+        } else {
+            c.baseBlockCoord = {
+                static_cast<int>(std::floor(c.worldPos.x)),
+                static_cast<int>(std::floor(c.worldPos.y)),
+                static_cast<int>(std::floor(c.worldPos.z))
+            };
+        }
         if (!ReadDouble(in, c.height)) return false;
         if (!ReadDouble(in, c.exitVelocity)) return false;
         if (!ReadDouble(in, c.radius)) return false;
+        if (header.version >= 3) {
+            uint8_t enabled = 1;
+            if (!ReadU8(in, enabled)) return false;
+            c.enabled = (enabled != 0);
+        } else {
+            c.enabled = true;
+        }
         chimneys.push_back(c);
     }
 

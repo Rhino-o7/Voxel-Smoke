@@ -57,7 +57,7 @@ void Display::init() {
 
     glGenTextures(1, &revealTexture);
 	glBindTexture(GL_TEXTURE_2D, revealTexture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, Application::Width, Application::Height, 0, GL_RED, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16F, Application::Width, Application::Height, 0, GL_RED, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glBindTexture(GL_TEXTURE_2D, 0);

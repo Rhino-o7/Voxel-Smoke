@@ -7,9 +7,11 @@ namespace yc::world {
 
 struct ChimneySource {
     glm::dvec3 worldPos{};     // base position in world coordinates
+    glm::ivec3 baseBlockCoord{};
     double height = 10.0;      // stack height
     double exitVelocity = 10.0;// units/sec
     double radius = 0.5;       // stack radius (for area)
+    bool enabled = true;
 };
 
 class PollutionSystem {

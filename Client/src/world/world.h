@@ -83,11 +83,15 @@ public:
     int32_t getSeed() const;
 
     void addChimneyEmitter(const BlockPos& baseBlockCoord, double height, double exitVelocity, double radius);
+    bool removeChimneyEmitterAt(size_t index);
+    bool removeChimneyEmitterContainingBlock(const BlockPos& blockCoord);
+    bool setChimneyEmitterEnabledAt(size_t index, bool enabled);
 
 
     void setWindState(const WindState& state) { windState = state; }
     const WindState& getWindState() const { return windState; }
     const std::vector<ChimneySource>& getChimneyEmitters() const { return chimneyEmitters; }
+    std::vector<ChimneySource>& getChimneyEmittersMutable() { return chimneyEmitters; }
 
     void setSimTimeSec(double value) { simTimeSec = value; }
     double getSimTimeSec() const { return simTimeSec; }

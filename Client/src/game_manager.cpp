@@ -103,6 +103,9 @@ double GameManager::getPollutionAtWorld(const yc::world::WorldPos& worldPos) con
 
     const auto& sources = world->getChimneyEmitters();
     for (const auto& src : sources) {
+        if (!src.enabled) {
+            continue;
+        }
         ps.setSource(src);
         total += ps.concentrationAt(worldPos);
     }
@@ -171,6 +174,9 @@ void GameManager::updateCropExposure(double simDtSec) {
 
         double total = 0.0;
         for (const auto& src : sources) {
+            if (!src.enabled) {
+                continue;
+            }
             ps.setSource(src);
             total += ps.concentrationAt(worldPos);
         }

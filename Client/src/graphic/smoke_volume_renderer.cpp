@@ -81,7 +81,8 @@ bool SmokeVolumeRenderer::computePlumeBounds(const yc::world::ChimneySource& sou
     const glm::dvec2 perp(-windDir.y, windDir.x);
 
     const glm::dvec2 base(source.worldPos.x, source.worldPos.z);
-    const double cross = static_cast<double>(settings.boxCrosswind);
+    const double sourceRadius = std::max(source.radius, static_cast<double>(settings.voxelSize));
+    const double cross = std::max(static_cast<double>(settings.boxCrosswind), sourceRadius * 1.5);
 
     const glm::dvec2 p0 = base + perp * cross;
     const glm::dvec2 p1 = base - perp * cross;
@@ -93,8 +94,14 @@ bool SmokeVolumeRenderer::computePlumeBounds(const yc::world::ChimneySource& sou
     const double minZ = std::min({ p0.y, p1.y, p2.y, p3.y });
     const double maxZ = std::max({ p0.y, p1.y, p2.y, p3.y });
 
-    const double minY = source.worldPos.y;
-    const double maxY = source.worldPos.y + source.height + static_cast<double>(settings.boxVertical);
+    const double x = std::max(downwindMax, 0.1);
+    const double vRatio = source.exitVelocity / std::max(1.0, windSpeed);
+    const double widen = 1.0 + 0.12 * std::clamp(vRatio, 0.0, 8.0);
+    const double sigmaZ = std::max(0.3 * std::sqrt(x) * widen, sourceRadius * 0.12);
+    const double verticalPad = std::max(sourceRadius, sigmaZ * 3.0);
+
+    const double minY = source.worldPos.y + source.height - verticalPad;
+    const double maxY = source.worldPos.y + source.height + std::max(static_cast<double>(settings.boxVertical), verticalPad);
 
     if (maxX <= minX || maxY <= minY || maxZ <= minZ) {
         return false;
@@ -224,6 +231,10 @@ void SmokeVolumeRenderer::render(yc::Camera* camera,
     const float maxDistSq = maxDist > 0.0f ? maxDist * maxDist : 0.0f;
 
     for (const auto& source : sources) {
+        if (!source.enabled) {
+            continue;
+        }
+
         glm::vec3 boxMin;
         glm::vec3 boxMax;
         if (!computePlumeBounds(source, smoothedWindSpeed, windDirD, downwindMax, settings, boxMin, boxMax)) {

@@ -19,13 +19,119 @@ static float Clamp01(float v) {
     return std::max(0.0f, std::min(1.0f, v));
 }
 
+bool World::removeChimneyEmitterContainingBlock(const BlockPos& blockCoord) {
+    for (size_t i = 0; i < chimneyEmitters.size(); ++i) {
+        const auto& source = chimneyEmitters[i];
+        const int height = std::max(1, static_cast<int>(std::round(source.height)));
+        const int radius = std::max(1, static_cast<int>(std::round(source.radius)));
+        const BlockPos base = source.baseBlockCoord;
+
+        const bool insideY = blockCoord.y >= base.y && blockCoord.y < base.y + height;
+        const int dx = blockCoord.x - base.x;
+        const int dz = blockCoord.z - base.z;
+        const bool insideRadius = (dx * dx + dz * dz) <= (radius * radius);
+
+        if (insideY && insideRadius) {
+            return removeChimneyEmitterAt(i);
+        }
+    }
+
+    return false;
+}
+
 void World::addChimneyEmitter(const BlockPos& baseBlockCoord, double height, double exitVelocity, double radius) {
     ChimneySource src{};
     src.worldPos = getBlockToWorldCoord(baseBlockCoord);
+    src.baseBlockCoord = baseBlockCoord;
     src.height = height;
     src.exitVelocity = exitVelocity;
     src.radius = radius;
+    src.enabled = true;
     chimneyEmitters.push_back(src);
+}
+
+bool World::removeChimneyEmitterAt(size_t index) {
+    if (index >= chimneyEmitters.size()) {
+        return false;
+    }
+
+    const ChimneySource source = chimneyEmitters[index];
+    const BlockPos base = source.baseBlockCoord;
+    const int height = std::max(1, static_cast<int>(std::round(source.height)));
+    const int radius = std::max(1, static_cast<int>(std::round(source.radius)));
+
+    std::unordered_map<glm::ivec2, std::shared_ptr<Chunk>, HashChunkCoord> loadedTouchedChunks;
+    std::unordered_map<glm::ivec2, std::shared_ptr<Chunk>, HashChunkCoord> diskTouchedChunks;
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = -radius; x <= radius; ++x) {
+            for (int z = -radius; z <= radius; ++z) {
+                if ((x * x + z * z) <= (radius * radius)) {
+                    const BlockPos worldBlock{ base.x + x, base.y + y, base.z + z };
+                    const glm::ivec2 chunkCoord = GetChunkCoordOf(worldBlock);
+                    const glm::ivec3 localCoord{
+                        util::PositiveMod(worldBlock.x, Chunk::Length),
+                        worldBlock.y,
+                        util::PositiveMod(worldBlock.z, Chunk::Width)
+                    };
+
+                    auto loadedChunk = getChunkIfLoadedAt(chunkCoord);
+                    if (loadedChunk) {
+                        loadedChunk->setBlockData(localCoord, { yc::world::BlockType::AIR });
+                        loadedTouchedChunks[chunkCoord] = loadedChunk;
+                        continue;
+                    }
+
+                    auto diskChunkIt = diskTouchedChunks.find(chunkCoord);
+                    std::shared_ptr<Chunk> diskChunk = (diskChunkIt != diskTouchedChunks.end())
+                        ? diskChunkIt->second
+                        : persistence->getChunk(chunkCoord, this);
+
+                    if (!diskChunk) {
+                        continue;
+                    }
+
+                    diskChunk->setBlockData(localCoord, { yc::world::BlockType::AIR });
+                    diskTouchedChunks[chunkCoord] = diskChunk;
+                }
+            }
+        }
+    }
+
+    for (auto& [coord, chunk] : loadedTouchedChunks) {
+        if (!chunk) {
+            continue;
+        }
+
+        chunk->prepareToBuildMesh();
+
+        auto westChunk = getChunkIfLoadedAt({ coord.x - 1, coord.y });
+        if (westChunk) westChunk->prepareToBuildMesh();
+        auto eastChunk = getChunkIfLoadedAt({ coord.x + 1, coord.y });
+        if (eastChunk) eastChunk->prepareToBuildMesh();
+        auto northChunk = getChunkIfLoadedAt({ coord.x, coord.y - 1 });
+        if (northChunk) northChunk->prepareToBuildMesh();
+        auto southChunk = getChunkIfLoadedAt({ coord.x, coord.y + 1 });
+        if (southChunk) southChunk->prepareToBuildMesh();
+    }
+
+    for (auto& [coord, chunk] : diskTouchedChunks) {
+        if (chunk) {
+            persistence->saveChunk(chunk);
+        }
+    }
+
+    chimneyEmitters.erase(chimneyEmitters.begin() + index);
+    return true;
+}
+
+bool World::setChimneyEmitterEnabledAt(size_t index, bool enabled) {
+    if (index >= chimneyEmitters.size()) {
+        return false;
+    }
+
+    chimneyEmitters[index].enabled = enabled;
+    return true;
 }
 
 World::World(Persistence* persistence) : generator(0), persistence(persistence) {}

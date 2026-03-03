@@ -59,8 +59,17 @@ void GUI::update(yc::Application* application, Player* player, yc::GameManager* 
     }
 }
 
-void GUI::pause(yc::Application* application) {
-    pauseScene = std::make_shared<PauseScene>(application);
+void GUI::pause(yc::Application* application, PausePage page) {
+    if (!pauseScene) {
+        pauseScene = std::make_shared<PauseScene>(application);
+    }
+    pauseScene->setPage(page);
+}
+
+void GUI::setPausePage(PausePage page) {
+    if (pauseScene) {
+        pauseScene->setPage(page);
+    }
 }
 
 void GUI::resume() {

@@ -96,17 +96,20 @@ float sampleGaussian(vec3 p) {
         vec2 perp = vec2(-w.y, w.x);
         float crosswind = dot(r, perp);
 
+        float sourceRadius = max(radius, 0.01);
         float x = max(downwind, 0.1);
         float vRatio = exitVelocity / max(1.0, uWindSpeed);
         float widen = 1.0 + 0.12 * clamp(vRatio, 0.0, 8.0);
 
-        float sigmaY = 0.6 * sqrt(x) * widen;
-        float sigmaZ = 0.3 * sqrt(x) * widen;
+        float sigmaY = max(0.6 * sqrt(x) * widen, sourceRadius * 0.20);
+        float sigmaZ = max(0.3 * sqrt(x) * widen, sourceRadius * 0.12);
 
         float area = PI * radius * radius;
         float Q = area * exitVelocity;
 
-        float gy = exp(-(crosswind * crosswind) / (2.0 * sigmaY * sigmaY));
+        float crossAbs = abs(crosswind);
+        float crossCore = max(crossAbs - sourceRadius * 0.55, 0.0);
+        float gy = exp(-(crossCore * crossCore) / (2.0 * sigmaY * sigmaY));
         float z = rel.y;
         float gz = exp(-((z - srcH) * (z - srcH)) / (2.0 * sigmaZ * sigmaZ));
 
@@ -174,8 +177,7 @@ void main() {
     nextBoundary.y = (stepDir.y > 0 ? (float(voxel.y) + 1.0) : float(voxel.y)) * minStep + worldOrigin.y;
     nextBoundary.z = (stepDir.z > 0 ? (float(voxel.z) + 1.0) : float(voxel.z)) * minStep + worldOrigin.z;
 
-    vec3 tMax = (nextBoundary - ro) * invRd;
-    tMax = max(tMax, vec3(tNear));
+    vec3 tMax = tNear + (nextBoundary - pos) * invRd;
     voxel = clamp(voxel, ivec3(0), gridDim - ivec3(1));
 
     bool hit = false;
@@ -187,7 +189,7 @@ void main() {
         if (any(lessThan(voxel, ivec3(0))) || any(greaterThanEqual(voxel, gridDim))) {
             break;
         }
-        vec3 voxelPos = (vec3(voxel) + vec3(0.5)) * minStep + uBoxMin;
+        vec3 voxelPos = (vec3(voxel) + vec3(0.5)) * minStep + worldOrigin;
 
         float density = sampleGaussian(voxelPos);
         if (density >= uVoxelThreshold) {
@@ -205,6 +207,7 @@ void main() {
             float variationStrength = 0.12; // small variation amount
             vec3 varied = baseColor * (1.0 + (tint - 0.5) * variationStrength);
             color = clamp(varied, 0.0, 1.0);
+
 
             hit = true;
             tHit = t;
