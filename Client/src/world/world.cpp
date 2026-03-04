@@ -302,6 +302,37 @@ double World::getCropExposureAtBlock(const BlockPos& blockPos) const {
     return (it != cropExposureMap->end()) ? it->second : 0.0;
 }
 
+std::vector<BlockPos> World::getLoadedBlockPositionsOfType(BlockType type) const {
+    std::vector<BlockPos> result;
+
+    for (const auto& [chunkCoord, chunk] : this->chunks) {
+        (void)chunkCoord;
+        if (!chunk) {
+            continue;
+        }
+
+        BlockData* data = chunk->getChunkData();
+        if (!data) {
+            continue;
+        }
+
+        for (int x = 0; x < Chunk::Length; ++x) {
+            for (int y = 0; y < Chunk::Height; ++y) {
+                for (int z = 0; z < Chunk::Width; ++z) {
+                    const int idx = x * (Chunk::Height * Chunk::Width) + y * Chunk::Width + z;
+                    if (data[idx].getType() != type) {
+                        continue;
+                    }
+
+                    result.push_back(chunk->getWorldCoordOfBlock({ x, y, z }));
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
 void World::renderOpaque(Camera* camera) {
     yc::Resource::GameTexure.bind();
     

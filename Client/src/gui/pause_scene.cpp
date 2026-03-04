@@ -3,6 +3,7 @@
 #include <imgui.h>
 #include <filesystem>
 #include <cstring>
+#include <algorithm>
 
 namespace fs = std::filesystem;
 
@@ -125,11 +126,14 @@ void PauseScene::renderChimneyPage() {
 
 void PauseScene::renderSettingsPage() {
     auto& settings = application->getSettings();
+    auto& manager = application->getGameManager();
+    settings.game.currentSeason = static_cast<int>(manager.getCurrentSeason());
+    settings.game.startHour = manager.getTimeOfDay().hours;
     syncWindPathBuffer();
 
     bool changed = false;
-    const double timeScaleMin = 0.1;
-    const double timeScaleMax = 120.0;
+    const double timeScaleMin = 1.0f;
+    const double timeScaleMax = 1000000.0f;
     const double defaultChimneyExitMin = 0.1;
     const double defaultChimneyExitMax = 100.0;
 
@@ -141,6 +145,22 @@ void PauseScene::renderSettingsPage() {
     changed |= ImGui::SliderScalar("Time Scale", ImGuiDataType_Double, &settings.game.timeScale, &timeScaleMin, &timeScaleMax, "%.2f");
     changed |= ImGui::SliderFloat("Temperature C", &settings.game.temperatureC, -40.0f, 60.0f, "%.1f");
     changed |= ImGui::Checkbox("Start Simulation Running", &settings.game.startSimulationRunning);
+    changed |= ImGui::Checkbox("Day/Night Cycle Enabled", &settings.game.dayNightCycleEnabled);
+
+    static const char* seasonLabels[] = { "Spring", "Summer", "Autumn", "Winter" };
+    int seasonIndex = std::clamp(settings.game.currentSeason, 0, 3);
+    if (ImGui::Combo("Current Season", &seasonIndex, seasonLabels, IM_ARRAYSIZE(seasonLabels))) {
+        settings.game.currentSeason = seasonIndex;
+        manager.setCurrentSeason(static_cast<yc::GameManager::Season>(seasonIndex), true);
+        changed = true;
+    }
+
+    int hour = std::clamp(settings.game.startHour, 0, 23);
+    if (ImGui::SliderInt("Current Hour", &hour, 0, 23)) {
+        settings.game.startHour = hour;
+        manager.setCurrentHour(hour);
+        changed = true;
+    }
 
     ImGui::InputText("Wind CSV Path", windCsvPathBuffer.data(), windCsvPathBuffer.size());
     if (ImGui::Button("Apply Wind CSV Path")) {
@@ -159,6 +179,11 @@ void PauseScene::renderSettingsPage() {
     if (!windCsvPathError.empty()) {
         ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", windCsvPathError.c_str());
     }
+
+    const auto date = manager.getDate();
+    const auto tod = manager.getTimeOfDay();
+    ImGui::Text("Date Preview: Year %d, %s Day %d", date.year, yc::GameManager::getSeasonName(date.season), date.dayOfSeason);
+    ImGui::Text("Clock Preview: %02d:%02d:%02d (%s)", tod.hours, tod.minutes, tod.seconds, date.isDaytime ? "Day" : "Night");
 
     ImGui::Separator();
     ImGui::Text("World");
@@ -216,7 +241,8 @@ void PauseScene::render() {
         | ImGuiWindowFlags_NoScrollbar
         | ImGuiWindowFlags_NoResize
         | ImGuiWindowFlags_NoMove
-        | ImGuiWindowFlags_NoInputs
+        | ImGuiWindowFlags_NoBringToFrontOnFocus
+        | ImGuiWindowFlags_NoNavFocus
         | ImGuiWindowFlags_NoSavedSettings);
 
     ImGui::End();

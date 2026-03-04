@@ -2,6 +2,7 @@
 
 #include <string>
 #include <cmath>
+#include <algorithm>
 
 #include "game_clock.h"
 #include "player.h"
@@ -14,6 +15,28 @@ namespace yc {
 
 class GameManager {
 public:
+    enum class Season {
+        Spring = 0,
+        Summer,
+        Autumn,
+        Winter
+    };
+
+    struct Date {
+        int year = 1;
+        int dayOfYear = 1;
+        int dayOfSeason = 1;
+        Season season = Season::Spring;
+        bool isDaytime = true;
+    };
+
+    struct HarvestResult {
+        bool hasResult = false;
+        int cropCount = 0;
+        int producedCrops = 0;
+        int maxCrops = 0;
+    };
+
     struct ChimneySettings {
         int height = 20;
         int radius = 5;
@@ -55,6 +78,13 @@ public:
 
     double getSimTimeSec() const { return clock.getSimTimeSec(); }
     TimeOfDay getTimeOfDay() const;
+    Date getDate() const;
+    Season getCurrentSeason() const;
+    static const char* getSeasonName(Season season);
+    bool isDayNightCycleEnabled() const { return dayNightCycleEnabled; }
+    void setDayNightCycleEnabled(bool value) { dayNightCycleEnabled = value; }
+    void setCurrentSeason(Season season, bool keepTimeOfDay = true);
+    void setCurrentHour(int hour);
 
     float getTemperatureC() const { return temperatureC; }
     void setTemperatureC(float value) { temperatureC = value; }
@@ -72,10 +102,19 @@ public:
 
     void registerCropBlock(const yc::world::BlockPos& blockPos);
     void unregisterCropBlock(const yc::world::BlockPos& blockPos);
+    void registerLoadedCropBlocks();
+    void scheduleLoadedCropRegistration(int ticks = 180);
     double getCropExposureAtBlock(const yc::world::BlockPos& blockPos) const;
     const yc::world::CropExposureMap& getCropExposureByBlock() const { return cropExposureByBlock; }
     void setCropExposureByBlock(const yc::world::CropExposureMap& map) { cropExposureByBlock = map; }
     float getCropHealthPercent() const;
+    float getCropScoreAtBlock(const yc::world::BlockPos& blockPos) const;
+    HarvestResult getHarvestResult() const { return harvestResult; }
+    bool isGameOver() const { return gameOver; }
+    void resetRound();
+    void continueToNextFarmingYear();
+    int getFarmingYear() const { return farmingYear; }
+    void setFarmingYear(int value) { farmingYear = std::max(1, value); }
 
     double getTimeScale() const { return clock.getTimeScale(); }
     float getExposureScale() const { return exposureScale; }
@@ -85,6 +124,15 @@ public:
     void setSimulationRunning(bool value);
 
 private:
+    static constexpr int HoursPerDay = 24;
+    static constexpr int DaysPerSeason = 30;
+    static constexpr int SeasonsPerYear = 4;
+    static constexpr int DaysPerYear = DaysPerSeason * SeasonsPerYear;
+
+    static int getSeasonStartDay(Season season);
+    static int positiveMod(int value, int mod);
+    void updateCalendarState();
+    void finishHarvestIfNeeded();
     void updateCropExposure(double simDtSec);
 
     yc::world::World* world = nullptr;
@@ -103,6 +151,12 @@ private:
     yc::world::WindState currentWindState{};
     yc::world::CropExposureMap cropExposureByBlock;
     float exposureScale = 0.01f;
+    bool dayNightCycleEnabled = true;
+    int lastAbsoluteDay = -1;
+    int pendingCropRegistrationTicks = 0;
+    int farmingYear = 1;
+    bool gameOver = false;
+    HarvestResult harvestResult{};
 };
 
 }

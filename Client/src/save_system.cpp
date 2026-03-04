@@ -11,7 +11,7 @@ namespace fs = std::filesystem;
 
 namespace {
     constexpr uint32_t SaveMagic = 0x56534359; // "YCSV"
-    constexpr uint32_t SaveVersion = 3;
+    constexpr uint32_t SaveVersion = 5;
 
     struct SaveHeader {
         uint32_t magic = SaveMagic;
@@ -142,6 +142,13 @@ bool SaveSystem::saveGame(const Settings& settings, const GameManager& gameManag
 
     if (!WriteFloat(out, gameManager.getTemperatureC())) return false;
     if (!WriteFloat(out, world.getExposureScale())) return false;
+    if (!WriteU8(out, gameManager.isDayNightCycleEnabled() ? 1 : 0)) return false;
+    if (!WriteInt(out, gameManager.getFarmingYear())) return false;
+
+    const auto date = gameManager.getDate();
+    const auto tod = gameManager.getTimeOfDay();
+    if (!WriteInt(out, static_cast<int>(date.season))) return false;
+    if (!WriteInt(out, tod.hours)) return false;
 
     const auto& chimneys = world.getChimneyEmitters();
     if (!WriteU32(out, static_cast<uint32_t>(chimneys.size()))) return false;
@@ -205,6 +212,21 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
     if (!ReadFloat(in, temperatureC)) return false;
     if (!ReadFloat(in, exposureScale)) return false;
 
+    bool dayNightCycleEnabled = true;
+    int farmingYear = 1;
+    int currentSeason = 0;
+    int startHour = 8;
+    if (header.version >= 4) {
+        uint8_t dayNightCycle = 1;
+        if (!ReadU8(in, dayNightCycle)) return false;
+        dayNightCycleEnabled = (dayNightCycle != 0);
+        if (header.version >= 5) {
+            if (!ReadInt(in, farmingYear)) return false;
+        }
+        if (!ReadInt(in, currentSeason)) return false;
+        if (!ReadInt(in, startHour)) return false;
+    }
+
     uint32_t chimneyCount = 0;
     if (!ReadU32(in, chimneyCount)) return false;
 
@@ -260,6 +282,9 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
     settings.game.timeScale = timeScale;
     settings.game.temperatureC = temperatureC;
     settings.exposure.exposureScale = exposureScale;
+    settings.game.dayNightCycleEnabled = dayNightCycleEnabled;
+    settings.game.currentSeason = std::clamp(currentSeason, 0, 3);
+    settings.game.startHour = std::clamp(startHour, 0, 23);
 
     world.setSettings(ws);
     world.setExposureScale(exposureScale);
@@ -268,6 +293,8 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
     gameManager.setTimeScale(timeScale);
     gameManager.setTemperatureC(temperatureC);
     gameManager.setExposureScale(exposureScale);
+    gameManager.setDayNightCycleEnabled(dayNightCycleEnabled);
+    gameManager.setFarmingYear(farmingYear);
     gameManager.setSimTimeSec(simTimeSec);
     gameManager.setSimulationRunning(running != 0);
     gameManager.setCropExposureByBlock(cropExposure);

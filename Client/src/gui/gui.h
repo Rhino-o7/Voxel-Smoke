@@ -35,6 +35,7 @@ private:
     std::shared_ptr<GameScene> gameScene;
     std::shared_ptr<PauseScene> pauseScene;
     std::shared_ptr<SaveSelectScene> saveSelectScene;
+    yc::Application* application = nullptr;
     yc::GameManager* gameManager = nullptr;
 };
 

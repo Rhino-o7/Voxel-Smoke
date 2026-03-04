@@ -14,6 +14,9 @@ struct Settings {
         float temperatureC = 20.0f;
         bool startSimulationRunning = false;
         std::string windCsvPath = "resources/simulation/wind_test.csv";
+        int currentSeason = 0;
+        bool dayNightCycleEnabled = true;
+        int startHour = 8;
     } game;
 
     struct WorldSettings {

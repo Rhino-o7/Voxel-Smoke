@@ -101,6 +101,7 @@ public:
 
     void setCropExposureMap(const CropExposureMap* map);
     double getCropExposureAtBlock(const BlockPos& blockPos) const;
+    std::vector<BlockPos> getLoadedBlockPositionsOfType(BlockType type) const;
 
     void setSettings(const yc::Settings::WorldSettings& value) { settings = value; }
     const yc::Settings::WorldSettings& getSettings() const { return settings; }

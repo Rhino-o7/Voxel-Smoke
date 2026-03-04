@@ -93,6 +93,11 @@ namespace yc {
 
     void Application::process() {
 
+        const int cursorMode = (saveSelectionActive || paused || gameManager.isGameOver())
+            ? GLFW_CURSOR_NORMAL
+            : GLFW_CURSOR_DISABLED;
+        glfwSetInputMode(window, GLFW_CURSOR, cursorMode);
+
         // Real-time delta
         static double lastRealTime = glfwGetTime();
         const double now = glfwGetTime();
@@ -106,7 +111,7 @@ namespace yc {
             gameManager.update(realDt);
         }
 
-        if (!paused && !saveSelectionActive) {
+        if (!paused && !saveSelectionActive && !gameManager.isGameOver()) {
             if (glfwGetKey(window, GLFW_KEY_F5) == GLFW_PRESS) {
                 world->reloadChunks();
             }
@@ -155,7 +160,7 @@ namespace yc {
             return;
         }
 
-        if (action == GLFW_PRESS && key == GLFW_KEY_T) {
+        if (action == GLFW_PRESS && key == GLFW_KEY_T && !app->gameManager.isGameOver()) {
             app->gameManager.toggleSimulation();
         }
 
@@ -175,7 +180,7 @@ namespace yc {
             return;
         }
 
-        if (!app->paused) {
+        if (!app->paused && !app->gameManager.isGameOver()) {
             if (glfwGetKey(app->window, GLFW_KEY_F3) == GLFW_PRESS) {
                 app->display.toggleLineMode();
             }
@@ -211,7 +216,7 @@ namespace yc {
         lastX = xpos;
         lastY = ypos;
 
-        if (!app->paused) {
+        if (!app->paused && !app->gameManager.isGameOver()) {
             const float sensitivity = 0.2f;
             xoffset *= sensitivity;
             yoffset *= sensitivity;
@@ -231,7 +236,7 @@ namespace yc {
             return;
         }
 
-        if (!app->paused) {
+        if (!app->paused && !app->gameManager.isGameOver()) {
             if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
                 if (app->player->isSelectingBlock()) {
                     if (app->player->getCurrentBlockType() == yc::world::BlockType::CHIMNEY) {
@@ -286,7 +291,7 @@ namespace yc {
             return;
         }
 
-        if (!app->paused) {
+        if (!app->paused && !app->gameManager.isGameOver()) {
             if (yoffset < 0) {
                 app->player->nextSlot();
             }
@@ -357,8 +362,8 @@ namespace yc {
         world->clearChimneyEmitters();
         persistence->reset(saveSystem.getPaths().regionsRoot.string());
 
-        gameManager.setSimTimeSec(0.0);
-        gameManager.setSimulationRunning(false);
+        gameManager.resetRound();
+        applyCurrentSettings();
 
         return true;
     }
@@ -382,9 +387,9 @@ namespace yc {
             }
             gameManager.loadWindCsv(settings.game.windCsvPath);
             applyCurrentSettings();
+            gameManager.scheduleLoadedCropRegistration();
         } else {
-            gameManager.setSimTimeSec(0.0);
-            gameManager.setSimulationRunning(false);
+            gameManager.resetRound();
             applyCurrentSettings();
         }
 

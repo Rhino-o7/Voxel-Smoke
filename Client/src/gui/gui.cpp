@@ -44,6 +44,7 @@ void GUI::init(GLFWwindow* window) {
 }
 
 void GUI::update(yc::Application* application, Player* player, yc::GameManager* gameManager) {
+    this->application = application;
     this->gameManager = gameManager;
 
     if (application && application->isSaveSelectionActive()) {
@@ -96,6 +97,59 @@ void GUI::render() {
         pauseScene->render();
     }
 
+    if (gameManager && gameManager->isGameOver()) {
+        const auto result = gameManager->getHarvestResult();
+        const auto date = gameManager->getDate();
+
+        ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
+        ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0.7f));
+        ImGui::Begin("game_over_overlay", nullptr,
+            ImGuiWindowFlags_NoTitleBar
+            | ImGuiWindowFlags_NoScrollbar
+            | ImGuiWindowFlags_NoResize
+            | ImGuiWindowFlags_NoMove
+            | ImGuiWindowFlags_NoBringToFrontOnFocus
+            | ImGuiWindowFlags_NoNavFocus
+            | ImGuiWindowFlags_NoSavedSettings);
+        ImGui::End();
+        ImGui::PopStyleColor();
+
+        const auto io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, 340.0f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        ImGui::Begin("game_over_menu", nullptr,
+            ImGuiWindowFlags_AlwaysAutoResize
+            | ImGuiWindowFlags_NoTitleBar
+            | ImGuiWindowFlags_NoBackground);
+
+        ImGui::Text("Harvest Complete");
+        ImGui::Separator();
+        ImGui::Text("Year: %d", date.year);
+        ImGui::Text("Season Ended: %s", yc::GameManager::getSeasonName(date.season));
+        ImGui::Text("Crop Blocks Harvested: %d", result.cropCount);
+        ImGui::Text("Crops Produced: %d / %d", result.producedCrops, result.maxCrops);
+        ImGui::Spacing();
+
+        const ImVec2 nextYearButtonSize(300.0f, 38.0f);
+        if (ImGui::Button("Continue To Next Farming Year", nextYearButtonSize)) {
+            gameManager->continueToNextFarmingYear();
+        }
+
+        if (ImGui::Button("Load Another Save", nextYearButtonSize)) {
+            if (application) {
+                application->setSaveSelectionActive(true);
+            }
+        }
+
+        if (ImGui::Button("Quit", nextYearButtonSize)) {
+            if (application) {
+                application->stop();
+            }
+        }
+
+        ImGui::End();
+    }
+
     // --- HUD: Healthbar, Timer, Windspeed ---
 
     ImGuiWindowFlags hudFlags = ImGuiWindowFlags_NoTitleBar
@@ -109,15 +163,19 @@ void GUI::render() {
     ImGui::Begin("HUD", nullptr, hudFlags);
 
     float healthPercent = gameManager ? gameManager->getCropHealthPercent() : 1.0f;
+    const float scorePercent = healthPercent * 100.0f;
 
-    ImGui::Text("Health");
+    ImGui::Text("Crop Score");
     ImVec2 barSize(200.0f, 20.0f);
     ImGui::ProgressBar(healthPercent, barSize);
+    ImGui::Text("Average: %.1f / 100", scorePercent);
     ImGui::Spacing();
 
     if (gameManager) {
         const auto tod = gameManager->getTimeOfDay();
-        ImGui::Text("Time: %02d:%02d:%02d", tod.hours, tod.minutes, tod.seconds);
+        const auto date = gameManager->getDate();
+        ImGui::Text("Date: Year %d, %s Day %d", date.year, yc::GameManager::getSeasonName(date.season), date.dayOfSeason);
+        ImGui::Text("Time: %02d:%02d:%02d (%s)", tod.hours, tod.minutes, tod.seconds, date.isDaytime ? "Day" : "Night");
 
         ImGui::Text("Sim: %s (T)", gameManager->isSimulationRunning() ? "Running" : "Paused");
 
@@ -131,6 +189,7 @@ void GUI::render() {
 
         ImGui::Text("Temp: %.1f C", gameManager->getTemperatureC());
     } else {
+        ImGui::Text("Date: --");
         ImGui::Text("Time: --:--:--");
         ImGui::Text("Sim: -- (T)");
         ImGui::Text("Wind: --.- m/s");
