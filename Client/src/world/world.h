@@ -5,6 +5,7 @@
 #include <vector>
 #include <glm/glm.hpp>
 #include <cstdint>
+#include <shared_mutex>
 
 #include "persistence.h"
 #include "world/world_generator.h"
@@ -42,12 +43,19 @@ public:
         glm::ivec3 face;
     };
 
+    struct CullingStats {
+        size_t loadedChunks = 0;
+        size_t visibleChunks = 0;
+        size_t culledChunks = 0;
+    };
+
     static glm::ivec2 GetChunkCoordOf(const glm::ivec3& coord);
 
     World() : generator(0), persistence(nullptr), exposureScale(0.0f) {}
     World(Persistence* persistence);
 
     void init();
+    ~World();
     void update(yc::Camera* camera);
 
     void renderOpaque(yc::Camera* camera);
@@ -71,22 +79,37 @@ public:
     void reloadChunks();
     void saveChunks();
 
+    // (removed) use detached threads from Chunk when needed
+
     void spawnTreeAt(const glm::ivec3& coord);
     void spawnChimneyAt(const glm::ivec3& coord, int height, int radius, double exitVelocity);
 
     RayCastResult raycastCheck(const glm::vec3& position, const glm::vec3& direction, bool discardFlora, bool discardWater);
 
     int32_t getSeed() const;
+    void setSeed(int32_t seed);
 
     void addChimneyEmitter(const BlockPos& baseBlockCoord, double height, double exitVelocity, double radius);
+    bool removeChimneyEmitterAt(size_t index);
+    bool removeChimneyEmitterContainingBlock(const BlockPos& blockCoord);
+    bool setChimneyEmitterEnabledAt(size_t index, bool enabled);
 
 
     void setWindState(const WindState& state) { windState = state; }
     const WindState& getWindState() const { return windState; }
     const std::vector<ChimneySource>& getChimneyEmitters() const { return chimneyEmitters; }
+    std::vector<ChimneySource>& getChimneyEmittersMutable() { return chimneyEmitters; }
+
+    void setSimTimeSec(double value) { simTimeSec = value; }
+    double getSimTimeSec() const { return simTimeSec; }
+
+    void setSmokeSettings(const yc::Settings::SmokeSettings& value) { smokeSettings = value; }
+    const yc::Settings::SmokeSettings& getSmokeSettings() const { return smokeSettings; }
 
     void setCropExposureMap(const CropExposureMap* map);
     double getCropExposureAtBlock(const BlockPos& blockPos) const;
+    std::vector<BlockPos> getLoadedBlockPositionsOfType(BlockType type) const;
+    CullingStats getCullingStats() const;
 
     void setSettings(const yc::Settings::WorldSettings& value) { settings = value; }
     const yc::Settings::WorldSettings& getSettings() const { return settings; }
@@ -98,21 +121,38 @@ public:
     void setChimneyEmitters(const std::vector<ChimneySource>& emitters);
     void clearChimneyEmitters();
 
+    // Thread pool for background jobs (chunk CPU builds)
+    void enqueueJob(const std::function<void()>& job);
+
 private:
     std::unordered_map<glm::ivec2, std::shared_ptr<Chunk>, HashChunkCoord> chunks;
     std::queue<std::shared_ptr<Chunk>> shouldBeUnloadedChunks;
+
+    // Worker thread pool
+    std::vector<std::thread> workerThreads;
+    std::queue<std::function<void()>> jobQueue;
+    std::mutex jobQueueMutex;
+    std::condition_variable jobQueueCv;
+    std::atomic<bool> stopWorkers{false};
+
+    bool hasWorkerThreads() const { return !workerThreads.empty(); }
 
     WorldGenerator generator;
     Persistence* persistence;
 
     WindState windState{};
+    double simTimeSec = 0.0;
 
     std::vector<ChimneySource> chimneyEmitters;
 
     const CropExposureMap* cropExposureMap = nullptr;
 
     yc::Settings::WorldSettings settings{};
+    yc::Settings::SmokeSettings smokeSettings{};
     float exposureScale;
+    size_t visibleChunkCount = 0;
+
+    mutable std::shared_mutex chunksMutex;
 };
 
 }

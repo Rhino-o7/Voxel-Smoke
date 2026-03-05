@@ -6,8 +6,19 @@
 
 namespace yc {
 
+int GameManager::getSeasonStartDay(Season season) {
+    return static_cast<int>(season) * DaysPerSeason;
+}
+
+int GameManager::positiveMod(int value, int mod) {
+    const int r = value % mod;
+    return (r < 0) ? (r + mod) : r;
+}
+
 GameManager::GameManager() {
     clock.setTimeScale(10.0); // 1s real = 10s game
+    setCurrentSeason(Season::Spring, false);
+    setCurrentHour(8);
 }
 
 void GameManager::init(yc::world::World* world, Player* player) {
@@ -17,6 +28,7 @@ void GameManager::init(yc::world::World* world, Player* player) {
     if (world) {
         world->setWindState(currentWindState);
         world->setCropExposureMap(&cropExposureByBlock);
+        world->setSimTimeSec(clock.getSimTimeSec());
     }
 }
 
@@ -33,6 +45,17 @@ void GameManager::update(double realDtSec) {
 
     if (world) {
         world->setWindState(currentWindState);
+        world->setSimTimeSec(clock.getSimTimeSec());
+    }
+
+    updateCalendarState();
+    finishHarvestIfNeeded();
+
+    if (pendingCropRegistrationTicks > 0) {
+        if ((pendingCropRegistrationTicks % 10) == 0) {
+            registerLoadedCropBlocks();
+        }
+        --pendingCropRegistrationTicks;
     }
 
     updateCropExposure(simDtSec);
@@ -41,6 +64,49 @@ void GameManager::update(double realDtSec) {
 void GameManager::pauseTime() {
     resumeOnUnpause = simulationRunning;
     stopSimulation();
+}
+
+void GameManager::skipToEndOfCurrentSeason() {
+    const int secondsPerDay = HoursPerDay * 3600;
+    const double currentSimTime = getSimTimeSec();
+    const int absoluteDay = static_cast<int>(std::floor(currentSimTime / static_cast<double>(secondsPerDay)));
+    const int dayInYearZeroBased = positiveMod(absoluteDay, DaysPerYear);
+    const int dayInSeasonZeroBased = dayInYearZeroBased % DaysPerSeason;
+    const int daysRemainingInSeason = (DaysPerSeason - 1) - dayInSeasonZeroBased;
+    const int targetAbsoluteDay = absoluteDay + daysRemainingInSeason;
+    const double targetSimTime = static_cast<double>(targetAbsoluteDay * secondsPerDay + (secondsPerDay - 1));
+
+    if (currentSimTime >= targetSimTime) {
+        return;
+    }
+
+    registerLoadedCropBlocks();
+
+    constexpr double integrationStepSec = 60.0;
+    double simTime = currentSimTime;
+
+    while (simTime < targetSimTime) {
+        const double step = std::min(integrationStepSec, targetSimTime - simTime);
+        simTime += step;
+        clock.setSimTimeSec(simTime);
+
+        wind.update(clock.getSimTimeSec());
+        currentWindState = wind.current();
+        pollution.setWind(currentWindState);
+
+        if (world) {
+            world->setWindState(currentWindState);
+            world->setSimTimeSec(clock.getSimTimeSec());
+        }
+
+        updateCalendarState();
+        finishHarvestIfNeeded();
+        updateCropExposure(step);
+
+        if (gameOver) {
+            break;
+        }
+    }
 }
 
 void GameManager::resumeTime() {
@@ -58,6 +124,10 @@ void GameManager::startSimulation() {
     if (world) {
         world->setWindState(currentWindState);
     }
+}
+
+void GameManager::scheduleLoadedCropRegistration(int ticks) {
+    pendingCropRegistrationTicks = std::max(0, ticks);
 }
 
 void GameManager::stopSimulation() {
@@ -86,11 +156,70 @@ bool GameManager::loadWindCsv(const std::string& path) {
 
 GameManager::TimeOfDay GameManager::getTimeOfDay() const
 {
+    const int totalSeconds = static_cast<int>(std::floor(getSimTimeSec()));
+    const int secondsInDay = HoursPerDay * 3600;
+    const int daySeconds = positiveMod(totalSeconds, secondsInDay);
+
     return {
-        static_cast<int>(std::fmod(std::floor(getSimTimeSec() / 3600.0), 24.0)),
-        static_cast<int>(std::fmod(std::floor(getSimTimeSec() / 60.0), 60.0)),
-        static_cast<int>(std::fmod(std::floor(getSimTimeSec()), 60.0))
+
+        daySeconds / 3600,
+        (daySeconds / 60) % 60,
+        daySeconds % 60
 	};
+}
+
+GameManager::Date GameManager::getDate() const {
+    const int absoluteDay = static_cast<int>(std::floor(getSimTimeSec() / (HoursPerDay * 3600.0)));
+    const int dayInYearZeroBased = positiveMod(absoluteDay, DaysPerYear);
+
+    const Season season = static_cast<Season>(dayInYearZeroBased / DaysPerSeason);
+    const int dayOfSeason = (dayInYearZeroBased % DaysPerSeason) + 1;
+    const int hour = getTimeOfDay().hours;
+
+    Date date{};
+    date.year = farmingYear;
+    date.dayOfYear = dayInYearZeroBased + 1;
+    date.dayOfSeason = dayOfSeason;
+    date.season = season;
+    date.isDaytime = !dayNightCycleEnabled || (hour >= 6 && hour < 18);
+    return date;
+}
+
+GameManager::Season GameManager::getCurrentSeason() const {
+    return getDate().season;
+}
+
+const char* GameManager::getSeasonName(Season season) {
+    switch (season) {
+    case Season::Spring: return "Spring";
+    case Season::Summer: return "Summer";
+    case Season::Autumn: return "Autumn";
+    case Season::Winter: return "Winter";
+    default: return "Unknown";
+    }
+}
+
+void GameManager::setCurrentSeason(Season season, bool keepTimeOfDay) {
+    const int hour = keepTimeOfDay ? getTimeOfDay().hours : 0;
+    const int minute = keepTimeOfDay ? getTimeOfDay().minutes : 0;
+    const int second = keepTimeOfDay ? getTimeOfDay().seconds : 0;
+
+    const int absoluteDay = static_cast<int>(std::floor(getSimTimeSec() / (HoursPerDay * 3600.0)));
+    const int yearIndex = std::max(0, absoluteDay / DaysPerYear);
+    const int newDay = yearIndex * DaysPerYear + getSeasonStartDay(season);
+    const int daySeconds = hour * 3600 + minute * 60 + second;
+
+    clock.setSimTimeSec(static_cast<double>(newDay * HoursPerDay * 3600 + daySeconds));
+    updateCalendarState();
+}
+
+void GameManager::setCurrentHour(int hour) {
+    const int clampedHour = std::clamp(hour, 0, 23);
+    const auto tod = getTimeOfDay();
+    const int absoluteDay = static_cast<int>(std::floor(getSimTimeSec() / (HoursPerDay * 3600.0)));
+    const int daySeconds = clampedHour * 3600 + tod.minutes * 60 + tod.seconds;
+    clock.setSimTimeSec(static_cast<double>(absoluteDay * HoursPerDay * 3600 + daySeconds));
+    updateCalendarState();
 }
 
 double GameManager::getPollutionAtWorld(const yc::world::WorldPos& worldPos) const {
@@ -102,6 +231,9 @@ double GameManager::getPollutionAtWorld(const yc::world::WorldPos& worldPos) con
 
     const auto& sources = world->getChimneyEmitters();
     for (const auto& src : sources) {
+        if (!src.enabled) {
+            continue;
+        }
         ps.setSource(src);
         total += ps.concentrationAt(worldPos);
     }
@@ -120,6 +252,17 @@ void GameManager::registerCropBlock(const yc::world::BlockPos& blockPos) {
 
 void GameManager::unregisterCropBlock(const yc::world::BlockPos& blockPos) {
     cropExposureByBlock.erase(blockPos);
+}
+
+void GameManager::registerLoadedCropBlocks() {
+    if (!world) {
+        return;
+    }
+
+    const auto loadedCropBlocks = world->getLoadedBlockPositionsOfType(yc::world::BlockType::CROP);
+    for (const auto& blockPos : loadedCropBlocks) {
+        cropExposureByBlock.try_emplace(blockPos, 0.0);
+    }
 }
 
 double GameManager::getCropExposureAtBlock(const yc::world::BlockPos& blockPos) const {
@@ -142,8 +285,108 @@ float GameManager::getCropHealthPercent() const {
     return static_cast<float>(std::clamp(1.0 - avgDarken, 0.0, 1.0));
 }
 
+float GameManager::getCropScoreAtBlock(const yc::world::BlockPos& blockPos) const {
+    const double exposure = getCropExposureAtBlock(blockPos);
+    const double scale = std::max(1e-9, static_cast<double>(exposureScale));
+    const double darken = std::clamp(exposure * scale, 0.0, 1.0);
+    return static_cast<float>((1.0 - darken) * 100.0);
+}
+
+void GameManager::resetRound() {
+    farmingYear = 1;
+    gameOver = false;
+    harvestResult = {};
+    lastAbsoluteDay = -1;
+    cropExposureByBlock.clear();
+    setCurrentSeason(Season::Spring, false);
+    setCurrentHour(8);
+    stopSimulation();
+}
+
+void GameManager::continueToNextFarmingYear() {
+    const int secondsPerDay = HoursPerDay * 3600;
+    const int nextStartDay = getSeasonStartDay(Season::Spring);
+    const int startHour = 8;
+    const int daySeconds = startHour * 3600;
+
+    std::unordered_set<glm::ivec2, yc::world::World::HashChunkCoord> dirtyCropChunks;
+    for (const auto& [blockPos, exposure] : cropExposureByBlock) {
+        (void)exposure;
+        dirtyCropChunks.insert(yc::world::World::GetChunkCoordOf(blockPos));
+    }
+
+    farmingYear += 1;
+    cropExposureByBlock.clear();
+    gameOver = false;
+    harvestResult = {};
+    lastAbsoluteDay = -1;
+
+    clock.setSimTimeSec(static_cast<double>(nextStartDay * secondsPerDay + daySeconds));
+
+    if (world) {
+        const auto loadedCropBlocks = world->getLoadedBlockPositionsOfType(yc::world::BlockType::CROP);
+        for (const auto& blockPos : loadedCropBlocks) {
+            cropExposureByBlock[blockPos] = 0.0;
+            dirtyCropChunks.insert(yc::world::World::GetChunkCoordOf(blockPos));
+        }
+
+        world->setSimTimeSec(clock.getSimTimeSec());
+
+        for (const auto& chunkCoord : dirtyCropChunks) {
+            if (auto chunk = world->getChunkIfLoadedAt(chunkCoord)) {
+                chunk->updateCropExposureBuffers([this](const glm::ivec3& worldCoord) {
+                    return static_cast<float>(getCropExposureAtBlock(worldCoord));
+                });
+            }
+        }
+    }
+
+    updateCalendarState();
+    stopSimulation();
+}
+
+void GameManager::updateCalendarState() {
+    const int absoluteDay = static_cast<int>(std::floor(getSimTimeSec() / (HoursPerDay * 3600.0)));
+    if (absoluteDay != lastAbsoluteDay) {
+        lastAbsoluteDay = absoluteDay;
+    }
+}
+
+void GameManager::finishHarvestIfNeeded() {
+    if (gameOver) {
+        return;
+    }
+
+    const auto date = getDate();
+    if (date.season != Season::Autumn || date.dayOfSeason != 1) {
+        return;
+    }
+
+    HarvestResult result{};
+    result.hasResult = true;
+    result.cropCount = static_cast<int>(cropExposureByBlock.size());
+    constexpr int MaxCropsPerBlock = 10;
+    result.maxCrops = result.cropCount * MaxCropsPerBlock;
+
+    int produced = 0;
+    for (const auto& [blockPos, exposure] : cropExposureByBlock) {
+        (void)blockPos;
+        const double scale = std::max(1e-9, static_cast<double>(exposureScale));
+        const double darken = std::clamp(exposure * scale, 0.0, 1.0);
+        produced += static_cast<int>(std::round((1.0 - darken) * static_cast<double>(MaxCropsPerBlock)));
+    }
+
+    result.producedCrops = std::clamp(produced, 0, result.maxCrops);
+
+    harvestResult = result;
+    gameOver = true;
+    stopSimulation();
+}
+
 void GameManager::updateCropExposure(double simDtSec) {
-    if (!world || simDtSec <= 0.0 || cropExposureByBlock.empty()) return;
+    if (!world) return;
+
+    if (simDtSec <= 0.0 || cropExposureByBlock.empty()) return;
 
     const auto& sources = world->getChimneyEmitters();
     if (sources.empty()) return;
@@ -170,6 +413,9 @@ void GameManager::updateCropExposure(double simDtSec) {
 
         double total = 0.0;
         for (const auto& src : sources) {
+            if (!src.enabled) {
+                continue;
+            }
             ps.setSource(src);
             total += ps.concentrationAt(worldPos);
         }
@@ -195,10 +441,12 @@ void GameManager::applySettings(const Settings& settings) {
     clock.setTimeScale(settings.game.timeScale);
     temperatureC = settings.game.temperatureC;
     exposureScale = settings.exposure.exposureScale;
+    dayNightCycleEnabled = settings.game.dayNightCycleEnabled;
 
     if (world) {
         world->setSettings(settings.world);
         world->setExposureScale(settings.exposure.exposureScale);
+        world->setSmokeSettings(settings.smoke);
     }
 
     chimneySettings.height = settings.chimney.height;

@@ -40,13 +40,20 @@ public:
 
     GameManager& getGameManager() { return gameManager; }
     const GameManager& getGameManager() const { return gameManager; }
+    yc::world::World* getWorld() { return world; }
+    const yc::world::World* getWorld() const { return world; }
+
+    Settings& getSettings() { return settings; }
+    const Settings& getSettings() const { return settings; }
+
+    void applyCurrentSettings();
 
     void terminate();
 
     void pauseGame();
     void resumeGame();
 
-    bool createNewSave(const std::string& name);
+    bool createNewSave(const std::string& name, int32_t seed);
     bool loadSave(const std::string& name);
     bool deleteSave(const std::string& name);
     std::vector<std::string> listSaves() const;

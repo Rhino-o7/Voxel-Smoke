@@ -5,9 +5,9 @@
 #include "graphic/crosshair.h"
 #include "graphic/skybox.h"
 #include "graphic/block_outline.h"
+#include "graphic/smoke_volume_renderer.h"
 #include "player.h"
 #include "world/world.h"
-#include "settings.h"
 
 namespace yc::graphic {
 
@@ -28,11 +28,7 @@ public:
 
     void toggleLineMode();
 
-    void setSmokeSettings(const yc::Settings::SmokeSettings& settings);
-
 private:
-    void renderSmokeVolume(yc::Camera* camera, yc::world::World* world);
-
     glm::vec3 clearColor = { 0.2f, 0.3f, 0.3f };
 
     bool lineMode;
@@ -43,13 +39,11 @@ private:
     unsigned int accumTexture;
     unsigned int revealTexture;
     unsigned int quadVAO, quadVBO;
-    unsigned int cubeVAO, cubeVBO;
-
-    yc::Settings::SmokeSettings smokeSettings{};
 
     SkyBox skybox;
     BlockOutline blockOutline;
     CrossHair crosshair;
+    SmokeVolumeRenderer smokeRenderer;
 };
 
 }

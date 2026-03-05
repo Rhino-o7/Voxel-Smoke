@@ -1,5 +1,8 @@
 .vs/
-.vs/*
+Client/saves/
+
+build/obj/
+*/obj/
 
 *.user
 *.suo

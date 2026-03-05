@@ -1,11 +1,22 @@
 #include "save_select_scene.h"
 #include "application.h"
 #include <imgui.h>
+#include <random>
+
+namespace {
+int32_t GenerateRandomSeed() {
+    static std::random_device rd;
+    static std::mt19937 rng(rd());
+    static std::uniform_int_distribution<int32_t> dist;
+    return dist(rng);
+}
+}
 
 namespace yc::gui {
 
 SaveSelectScene::SaveSelectScene(Application* application) :
     application(application) {
+    randomSeed = GenerateRandomSeed();
     refreshList();
 }
 
@@ -44,6 +55,17 @@ void SaveSelectScene::render() {
     ImGui::Spacing();
     ImGui::InputText("New Save Name", newSaveName, sizeof(newSaveName));
 
+    ImGui::Checkbox("Use Random Seed", &useRandomSeed);
+    if (useRandomSeed) {
+        ImGui::Text("Seed: %d", randomSeed);
+        ImGui::SameLine();
+        if (ImGui::Button("Reroll")) {
+            randomSeed = GenerateRandomSeed();
+        }
+    } else {
+        ImGui::InputInt("Seed", &manualSeed);
+    }
+
     const bool hasSelection = selectedIndex >= 0 && selectedIndex < static_cast<int>(saveNames.size());
 
     if (ImGui::Button("Load Selected") && hasSelection) {
@@ -55,7 +77,8 @@ void SaveSelectScene::render() {
     ImGui::SameLine();
 
     if (ImGui::Button("Create New") && newSaveName[0] != '\0') {
-        if (application->createNewSave(newSaveName)) {
+        const int32_t seed = useRandomSeed ? randomSeed : manualSeed;
+        if (application->createNewSave(newSaveName, seed)) {
             application->setSaveSelectionActive(false);
         }
     }

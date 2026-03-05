@@ -4,9 +4,27 @@
 #include "resource.h"
 #include <iostream>
 #include <algorithm>
-#include <glm/gtc/matrix_transform.hpp>
+#include <cmath>
 
 namespace yc::graphic {
+
+static float ComputeDaylightFromSimTime(double simTimeSec) {
+    constexpr double secondsInDay = 24.0 * 3600.0;
+    const double daySeconds = std::fmod(simTimeSec, secondsInDay);
+    const double wrappedDaySeconds = (daySeconds < 0.0) ? (daySeconds + secondsInDay) : daySeconds;
+    const float hour = static_cast<float>(wrappedDaySeconds / 3600.0);
+
+    if (hour < 6.0f || hour >= 20.0f) {
+        return 0.0f;
+    }
+    if (hour < 8.0f) {
+        return (hour - 6.0f) / 2.0f;
+    }
+    if (hour < 18.0f) {
+        return 1.0f;
+    }
+    return 1.0f - ((hour - 18.0f) / 2.0f);
+}
 
 float quadVertices[] = {
     // positions        // uv
@@ -18,71 +36,6 @@ float quadVertices[] = {
     -1.0f, -1.0f, 0.0f,  0.0f, 0.0f
 };
 
-float cubeVertices[] = {
-    // positions
-    -0.5f,-0.5f,-0.5f,  0.5f,-0.5f,-0.5f,  0.5f, 0.5f,-0.5f,
-     0.5f, 0.5f,-0.5f, -0.5f, 0.5f,-0.5f, -0.5f,-0.5f,-0.5f,
-
-    -0.5f,-0.5f, 0.5f,  0.5f,-0.5f, 0.5f,  0.5f, 0.5f, 0.5f,
-     0.5f, 0.5f, 0.5f, -0.5f, 0.5f, 0.5f, -0.5f,-0.5f, 0.5f,
-
-    -0.5f, 0.5f, 0.5f, -0.5f, 0.5f,-0.5f, -0.5f,-0.5f,-0.5f,
-    -0.5f,-0.5f,-0.5f, -0.5f,-0.5f, 0.5f, -0.5f, 0.5f, 0.5f,
-
-     0.5f, 0.5f, 0.5f,  0.5f, 0.5f,-0.5f,  0.5f,-0.5f,-0.5f,
-     0.5f,-0.5f,-0.5f,  0.5f,-0.5f, 0.5f,  0.5f, 0.5f, 0.5f,
-
-    -0.5f,-0.5f,-0.5f,  0.5f,-0.5f,-0.5f,  0.5f,-0.5f, 0.5f,
-     0.5f,-0.5f, 0.5f, -0.5f,-0.5f, 0.5f, -0.5f,-0.5f,-0.5f,
-
-    -0.5f, 0.5f,-0.5f,  0.5f, 0.5f,-0.5f,  0.5f, 0.5f, 0.5f,
-     0.5f, 0.5f, 0.5f, -0.5f, 0.5f, 0.5f, -0.5f, 0.5f,-0.5f
-};
-
-static bool ComputeSmokeBounds(
-    const std::vector<yc::world::ChimneySource>& sources,
-    const yc::world::WindState& wind,
-    const yc::Settings::SmokeSettings& settings,
-    glm::vec3& outMin,
-    glm::vec3& outMax) {
-
-    if (sources.empty() || wind.speed <= 1e-6) {
-        return false;
-    }
-
-    const glm::dvec2 dir = wind.unitDirXZ();
-    const glm::dvec2 perp(-dir.y, dir.x);
-
-    const float maxDownwind = settings.boxDownwind;
-    const float maxCrosswind = settings.boxCrosswind;
-    const float maxVertical = settings.boxVertical;
-
-    bool initialized = false;
-
-    for (const auto& src : sources) {
-        const glm::dvec3 base = src.worldPos + glm::dvec3(0.0, src.height, 0.0);
-        const glm::dvec3 end = base + glm::dvec3(dir.x * maxDownwind, 0.0, dir.y * maxDownwind);
-        const glm::dvec3 cross = glm::dvec3(perp.x * maxCrosswind, 0.0, perp.y * maxCrosswind);
-
-        glm::dvec3 localMin = glm::min(base, end);
-        glm::dvec3 localMax = glm::max(base, end);
-
-        localMin -= glm::dvec3(std::abs(cross.x), maxVertical, std::abs(cross.z));
-        localMax += glm::dvec3(std::abs(cross.x), maxVertical, std::abs(cross.z));
-
-        if (!initialized) {
-            outMin = glm::vec3(localMin);
-            outMax = glm::vec3(localMax);
-            initialized = true;
-        } else {
-            outMin = glm::min(outMin, glm::vec3(localMin));
-            outMax = glm::max(outMax, glm::vec3(localMax));
-        }
-    }
-
-    return initialized;
-}
-
 Display::Display():
     lineMode(false)
 {}
@@ -91,6 +44,7 @@ void Display::init() {
     crosshair.init();
     skybox.init();
     blockOutline.init();
+    smokeRenderer.init();
 
     glGenFramebuffers(1, &opaqueFBO);
     glGenFramebuffers(1, &transparentFBO);
@@ -123,7 +77,7 @@ void Display::init() {
 
     glGenTextures(1, &revealTexture);
 	glBindTexture(GL_TEXTURE_2D, revealTexture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, Application::Width, Application::Height, 0, GL_RED, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R16F, Application::Width, Application::Height, 0, GL_RED, GL_FLOAT, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glBindTexture(GL_TEXTURE_2D, 0);
@@ -150,94 +104,6 @@ void Display::init() {
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
 	glBindVertexArray(0);
 
-    glGenVertexArrays(1, &cubeVAO);
-    glGenBuffers(1, &cubeVBO);
-    glBindVertexArray(cubeVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glBindVertexArray(0);
-}
-
-void Display::setSmokeSettings(const yc::Settings::SmokeSettings& settings) {
-    smokeSettings = settings;
-}
-
-void Display::renderSmokeVolume(yc::Camera* camera, yc::world::World* world) {
-    const auto& sources = world->getChimneyEmitters();
-    const auto& wind = world->getWindState();
-
-    glm::vec3 boxMin{};
-    glm::vec3 boxMax{};
-    if (!ComputeSmokeBounds(sources, wind, smokeSettings, boxMin, boxMax)) {
-        return;
-    }
-
-    constexpr int MaxSources = 32;
-    const int count = std::min(static_cast<int>(sources.size()), MaxSources);
-
-    std::vector<glm::vec4> posH(MaxSources, glm::vec4(0.0f));
-    std::vector<glm::vec4> params(MaxSources, glm::vec4(0.0f));
-
-    for (int i = 0; i < count; ++i) {
-        const auto& src = sources[i];
-        posH[i] = glm::vec4(static_cast<float>(src.worldPos.x),
-                            static_cast<float>(src.worldPos.y),
-                            static_cast<float>(src.worldPos.z),
-                            static_cast<float>(src.height));
-        params[i] = glm::vec4(static_cast<float>(src.exitVelocity),
-                              static_cast<float>(src.radius),
-                              0.0f,
-                              0.0f);
-    }
-
-    const glm::vec3 center = 0.5f * (boxMin + boxMax);
-    const glm::vec3 size = boxMax - boxMin;
-
-    glm::mat4 model(1.0f);
-    model = glm::translate(model, center);
-    model = glm::scale(model, size);
-
-    const glm::vec3 camPos = camera->getPosition();
-    const bool cameraInside =
-        camPos.x >= boxMin.x && camPos.x <= boxMax.x &&
-        camPos.y >= boxMin.y && camPos.y <= boxMax.y &&
-        camPos.z >= boxMin.z && camPos.z <= boxMax.z;
-
-    if (cameraInside) {
-        glDepthFunc(GL_ALWAYS);
-    }
-
-    auto& shader = yc::Resource::SmokeVolumeShader;
-    shader.use();
-    shader.setMat4("projection_view", camera->getProjectionViewMatrix());
-    shader.setMat4("model", model);
-    shader.setVec3("uCameraPos", camPos);
-    shader.setVec3("uBoxMin", boxMin);
-    shader.setVec3("uBoxMax", boxMax);
-
-    const glm::dvec2 dir = wind.unitDirXZ();
-    shader.setFloat("uWindSpeed", static_cast<float>(wind.speed));
-    shader.setVec2("uWindDirXZ", glm::vec2(static_cast<float>(dir.x), static_cast<float>(dir.y)));
-
-    shader.setInt("uSourceCount", count);
-    shader.setVec4Array("uSourcePosH", posH);
-    shader.setVec4Array("uSourceParams", params);
-
-    shader.setInt("uStepCount", std::max(1, smokeSettings.stepCount));
-    shader.setFloat("uDensityScale", smokeSettings.densityScale);
-    shader.setVec3("uSmokeColor", glm::vec3(smokeSettings.colorR, smokeSettings.colorG, smokeSettings.colorB));
-    shader.setFloat("zNear", 0.1f);
-    shader.setFloat("zFar", 5000.0f);
-
-    glBindVertexArray(cubeVAO);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-    glBindVertexArray(0);
-
-    if (cameraInside) {
-        glDepthFunc(GL_LESS);
-    }
 }
 
 void Display::prepareFrame() {
@@ -275,7 +141,8 @@ void Display::drawFrame(yc::Player* player, yc::world::World* world) {
     glBindFramebuffer(GL_FRAMEBUFFER, opaqueFBO);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    skybox.render(player->getCamera());
+    const float daylight = std::clamp(ComputeDaylightFromSimTime(world->getSimTimeSec()), 0.0f, 1.0f);
+    skybox.render(player->getCamera(), daylight);
     if (player->isSelectingBlock()) {
         blockOutline.render(player->getCamera(), player->getSelectingBlock());
     }
@@ -287,36 +154,41 @@ void Display::drawFrame(yc::Player* player, yc::world::World* world) {
     world->renderOpaque(player->getCamera());
     world->renderFlora(player->getCamera());
 
+    smokeRenderer.render(player->getCamera(),
+        world->getWindState(),
+        world->getChimneyEmitters(),
+        world->getSmokeSettings(),
+        world->getSimTimeSec());
+
     // render transparent
     glDepthMask(GL_FALSE);
-	glEnable(GL_BLEND);
-	glBlendEquation(GL_FUNC_ADD);
-	glBlendFunci(0, GL_ONE, GL_ONE);
-	glBlendFunci(1, GL_ZERO, GL_ONE_MINUS_SRC_COLOR);
+    glEnable(GL_BLEND);
+    glBlendEquation(GL_FUNC_ADD);
+    glBlendFunci(0, GL_ONE, GL_ONE);
+    glBlendFunci(1, GL_ZERO, GL_ONE_MINUS_SRC_COLOR);
 
     glBindFramebuffer(GL_FRAMEBUFFER, transparentFBO);
-	glClearBufferfv(GL_COLOR, 0, &zeroFillerVec[0]);
-	glClearBufferfv(GL_COLOR, 1, &oneFillerVec[0]);
+    glClearBufferfv(GL_COLOR, 0, &zeroFillerVec[0]);
+    glClearBufferfv(GL_COLOR, 1, &oneFillerVec[0]);
 
     world->renderTransparent(player->getCamera());
-    renderSmokeVolume(player->getCamera(), world);
 
     glDepthFunc(GL_ALWAYS);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     glBindFramebuffer(GL_FRAMEBUFFER, opaqueFBO);
 
     yc::Resource::CompositeShader.use(); 
 
     glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, accumTexture);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, revealTexture);
-	glBindVertexArray(quadVAO);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindTexture(GL_TEXTURE_2D, accumTexture);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, revealTexture);
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
 
-	// draw to backbuffer (final pass)
+    // draw to backbuffer (final pass)
 	// -----
 
 	// set render states

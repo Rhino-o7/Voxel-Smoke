@@ -16,56 +16,6 @@ namespace yc {
     void mouseButtonCallBack(GLFWwindow* window, int button, int action, int mods);
     void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
-    namespace {
-        constexpr int ChimneyHeightMin = 1;
-        constexpr int ChimneyRadiusMin = 1;
-        constexpr double ChimneyExitVelocityMin = 0.1;
-
-        constexpr int ChimneyHeightStep = 1;
-        constexpr int ChimneyRadiusStep = 1;
-        constexpr double ChimneyExitVelocityStep = 0.5;
-
-        GameManager::ChimneyParam NextChimneyParam(GameManager::ChimneyParam value) {
-            switch (value) {
-            case GameManager::ChimneyParam::Height:
-                return GameManager::ChimneyParam::Radius;
-            case GameManager::ChimneyParam::Radius:
-                return GameManager::ChimneyParam::ExitVelocity;
-            case GameManager::ChimneyParam::ExitVelocity:
-            default:
-                return GameManager::ChimneyParam::Height;
-            }
-        }
-
-        void AdjustChimneySetting(GameManager& manager, int direction) {
-            if (direction == 0) {
-                return;
-            }
-
-            auto settings = manager.getChimneySettings();
-            const auto param = manager.getActiveChimneyParam();
-
-            switch (param) {
-            case GameManager::ChimneyParam::Height:
-                settings.height = std::max(ChimneyHeightMin, settings.height + direction * ChimneyHeightStep);
-                break;
-            case GameManager::ChimneyParam::Radius:
-                settings.radius = std::max(ChimneyRadiusMin, settings.radius + direction * ChimneyRadiusStep);
-                break;
-            case GameManager::ChimneyParam::ExitVelocity:
-                settings.exitVelocity = std::max(ChimneyExitVelocityMin, settings.exitVelocity + direction * ChimneyExitVelocityStep);
-                break;
-            }
-
-            manager.setChimneySettings(settings);
-        }
-
-        bool IsChimneySelected(Application* app) {
-            auto player = app ? app->getPlayer() : nullptr;
-            return player && player->getCurrentBlockType() == yc::world::BlockType::CHIMNEY;
-        }
-    }
-
     Application::Application(int32_t width, int32_t height, const std::string& title) :
         paused(false) {
 
@@ -126,7 +76,7 @@ namespace yc {
         gameManager.loadWindCsv(settings.game.windCsvPath);
 
         display.init();
-        display.setSmokeSettings(settings.smoke);
+        //display.setSmokeSettings(settings.smoke);
 
         // set icon
         int iconWidth, iconHeight, iconChannel;
@@ -143,6 +93,11 @@ namespace yc {
 
     void Application::process() {
 
+        const int cursorMode = (saveSelectionActive || paused || gameManager.isGameOver())
+            ? GLFW_CURSOR_NORMAL
+            : GLFW_CURSOR_DISABLED;
+        glfwSetInputMode(window, GLFW_CURSOR, cursorMode);
+
         // Real-time delta
         static double lastRealTime = glfwGetTime();
         const double now = glfwGetTime();
@@ -156,7 +111,7 @@ namespace yc {
             gameManager.update(realDt);
         }
 
-        if (!paused && !saveSelectionActive) {
+        if (!paused && !saveSelectionActive && !gameManager.isGameOver()) {
             if (glfwGetKey(window, GLFW_KEY_F5) == GLFW_PRESS) {
                 world->reloadChunks();
             }
@@ -205,11 +160,27 @@ namespace yc {
             return;
         }
 
-        if (action == GLFW_PRESS && key == GLFW_KEY_T) {
+        if (action == GLFW_PRESS && key == GLFW_KEY_T && !app->gameManager.isGameOver()) {
             app->gameManager.toggleSimulation();
         }
 
-        if (!app->paused) {
+        if (action == GLFW_PRESS && key == GLFW_KEY_1) {
+            if (!app->paused) {
+                app->pauseGame();
+            }
+            app->gui.setPausePage(yc::gui::PausePage::ChimneyManager);
+            return;
+        }
+
+        if (action == GLFW_PRESS && key == GLFW_KEY_2) {
+            if (!app->paused) {
+                app->pauseGame();
+            }
+            app->gui.setPausePage(yc::gui::PausePage::Settings);
+            return;
+        }
+
+        if (!app->paused && !app->gameManager.isGameOver()) {
             if (glfwGetKey(app->window, GLFW_KEY_F3) == GLFW_PRESS) {
                 app->display.toggleLineMode();
             }
@@ -218,23 +189,6 @@ namespace yc {
                 app->saveCurrentGame();
             }
 
-            if (IsChimneySelected(app)) {
-                if (action == GLFW_PRESS && key == GLFW_KEY_C) {
-                    const auto next = NextChimneyParam(app->gameManager.getActiveChimneyParam());
-                    app->gameManager.setActiveChimneyParam(next);
-                }
-
-                const bool increase = key == GLFW_KEY_RIGHT_BRACKET
-                                   || key == GLFW_KEY_EQUAL
-                                   || key == GLFW_KEY_KP_ADD;
-                const bool decrease = key == GLFW_KEY_LEFT_BRACKET
-                                   || key == GLFW_KEY_MINUS
-                                   || key == GLFW_KEY_KP_SUBTRACT;
-
-                if ((action == GLFW_PRESS || action == GLFW_REPEAT) && (increase || decrease)) {
-                    AdjustChimneySetting(app->gameManager, increase ? 1 : -1);
-                }
-            }
         }
 
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
@@ -262,7 +216,7 @@ namespace yc {
         lastX = xpos;
         lastY = ypos;
 
-        if (!app->paused) {
+        if (!app->paused && !app->gameManager.isGameOver()) {
             const float sensitivity = 0.2f;
             xoffset *= sensitivity;
             yoffset *= sensitivity;
@@ -282,7 +236,7 @@ namespace yc {
             return;
         }
 
-        if (!app->paused) {
+        if (!app->paused && !app->gameManager.isGameOver()) {
             if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
                 if (app->player->isSelectingBlock()) {
                     if (app->player->getCurrentBlockType() == yc::world::BlockType::CHIMNEY) {
@@ -308,6 +262,13 @@ namespace yc {
             if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
                 if (app->player->isSelectingBlock()) {
                     const auto removedPos = app->player->getSelectingBlock();
+
+                    if (app->player->getSelectingBlockType() == yc::world::BlockType::CHIMNEY) {
+                        if (app->world->removeChimneyEmitterContainingBlock(removedPos)) {
+                            return;
+                        }
+                    }
+
                     app->world->destroyBlockIfLoaded(removedPos);
                     app->gameManager.unregisterCropBlock(removedPos);
                 }
@@ -330,16 +291,7 @@ namespace yc {
             return;
         }
 
-        if (!app->paused) {
-            const bool altPressed = glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS
-                || glfwGetKey(window, GLFW_KEY_RIGHT_ALT) == GLFW_PRESS;
-
-            if (IsChimneySelected(app) && altPressed) {
-                const int direction = (yoffset > 0) ? 1 : -1;
-                AdjustChimneySetting(app->gameManager, direction);
-                return;
-            }
-
+        if (!app->paused && !app->gameManager.isGameOver()) {
             if (yoffset < 0) {
                 app->player->nextSlot();
             }
@@ -365,7 +317,7 @@ namespace yc {
         }
         paused = true;
         gameManager.pauseTime();
-        gui.pause(this);
+        gui.pause(this, yc::gui::PausePage::Main);
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }
 
@@ -384,6 +336,13 @@ namespace yc {
         glfwTerminate();
     }
 
+    void Application::applyCurrentSettings() {
+        gameManager.applySettings(settings);
+        if (player) {
+            player->getCamera()->setFovDeg(settings.camera.fovDeg);
+        }
+    }
+
     Application::~Application() {
 
     }
@@ -391,22 +350,29 @@ namespace yc {
     int32_t Application::Width;
     int32_t Application::Height;
 
-    bool Application::createNewSave(const std::string& name) {
+    bool Application::createNewSave(const std::string& name, int32_t seed) {
+        // Ensure current game is saved before creating a new save slot
+        saveCurrentGame();
+
         if (!saveSystem.createNew(name)) {
             return false;
         }
 
         world->clearChunks();
         world->clearChimneyEmitters();
+        world->setSeed(seed);
         persistence->reset(saveSystem.getPaths().regionsRoot.string());
 
-        gameManager.setSimTimeSec(0.0);
-        gameManager.setSimulationRunning(false);
+        gameManager.resetRound();
+        applyCurrentSettings();
 
         return true;
     }
 
     bool Application::loadSave(const std::string& name) {
+        // Attempt to save current game before switching to another save
+        saveCurrentGame();
+
         if (!saveSystem.openOrCreate(name)) {
             return false;
         }
@@ -421,14 +387,11 @@ namespace yc {
                 return false;
             }
             gameManager.loadWindCsv(settings.game.windCsvPath);
+            applyCurrentSettings();
+            gameManager.scheduleLoadedCropRegistration();
         } else {
-            gameManager.setSimTimeSec(0.0);
-            gameManager.setSimulationRunning(false);
-            gameManager.applySettings(settings);
-        }
-
-        if (player) {
-            player->getCamera()->setFovDeg(settings.camera.fovDeg);
+            gameManager.resetRound();
+            applyCurrentSettings();
         }
 
         return true;

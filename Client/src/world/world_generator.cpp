@@ -94,6 +94,11 @@ WorldGenerator::WorldGenerator(int32_t seed, const TerrainConfig& config)
     ConfigureNoise(mountainNoise, seed, this->config.noise);
 }
 
+void WorldGenerator::setSeed(int32_t value) {
+    seed = value;
+    ConfigureNoise(mountainNoise, seed, config.noise);
+}
+
 void WorldGenerator::setTerrainConfig(const TerrainConfig& config) {
     this->config = config;
     ConfigureNoise(mountainNoise, seed, this->config.noise);

@@ -3,6 +3,7 @@
 #include <fstream>
 #include <vector>
 #include <algorithm>
+#include <cmath>
 
 namespace yc {
 
@@ -10,7 +11,7 @@ namespace fs = std::filesystem;
 
 namespace {
     constexpr uint32_t SaveMagic = 0x56534359; // "YCSV"
-    constexpr uint32_t SaveVersion = 1;
+    constexpr uint32_t SaveVersion = 6;
 
     struct SaveHeader {
         uint32_t magic = SaveMagic;
@@ -132,6 +133,7 @@ bool SaveSystem::saveGame(const Settings& settings, const GameManager& gameManag
     if (!WriteInt(out, ws.viewDistance)) return false;
     if (!WriteInt(out, ws.maxUnloadChunkPerFrame)) return false;
     if (!WriteInt(out, ws.maxChunksLoadPerFrame)) return false;
+    if (!WriteInt(out, world.getSeed())) return false;
 
     if (!WriteDouble(out, gameManager.getSimTimeSec())) return false;
     if (!WriteDouble(out, gameManager.getTimeScale())) return false;
@@ -141,6 +143,13 @@ bool SaveSystem::saveGame(const Settings& settings, const GameManager& gameManag
 
     if (!WriteFloat(out, gameManager.getTemperatureC())) return false;
     if (!WriteFloat(out, world.getExposureScale())) return false;
+    if (!WriteU8(out, gameManager.isDayNightCycleEnabled() ? 1 : 0)) return false;
+    if (!WriteInt(out, gameManager.getFarmingYear())) return false;
+
+    const auto date = gameManager.getDate();
+    const auto tod = gameManager.getTimeOfDay();
+    if (!WriteInt(out, static_cast<int>(date.season))) return false;
+    if (!WriteInt(out, tod.hours)) return false;
 
     const auto& chimneys = world.getChimneyEmitters();
     if (!WriteU32(out, static_cast<uint32_t>(chimneys.size()))) return false;
@@ -149,9 +158,23 @@ bool SaveSystem::saveGame(const Settings& settings, const GameManager& gameManag
         if (!WriteDouble(out, c.worldPos.x)) return false;
         if (!WriteDouble(out, c.worldPos.y)) return false;
         if (!WriteDouble(out, c.worldPos.z)) return false;
+        if (!WriteInt(out, c.baseBlockCoord.x)) return false;
+        if (!WriteInt(out, c.baseBlockCoord.y)) return false;
+        if (!WriteInt(out, c.baseBlockCoord.z)) return false;
         if (!WriteDouble(out, c.height)) return false;
         if (!WriteDouble(out, c.exitVelocity)) return false;
         if (!WriteDouble(out, c.radius)) return false;
+        if (!WriteU8(out, c.enabled ? 1 : 0)) return false;
+    }
+
+    const auto& cropExposure = gameManager.getCropExposureByBlock();
+    if (!WriteU32(out, static_cast<uint32_t>(cropExposure.size()))) return false;
+
+    for (const auto& [pos, exposure] : cropExposure) {
+        if (!WriteInt(out, pos.x)) return false;
+        if (!WriteInt(out, pos.y)) return false;
+        if (!WriteInt(out, pos.z)) return false;
+        if (!WriteDouble(out, exposure)) return false;
     }
 
     out.flush();
@@ -170,12 +193,17 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
 
     SaveHeader header{};
     if (!ReadBytes(in, &header, sizeof(header))) return false;
-    if (header.magic != SaveMagic || header.version != SaveVersion) return false;
+    if (header.magic != SaveMagic || header.version == 0 || header.version > SaveVersion) return false;
 
     Settings::WorldSettings ws{};
     if (!ReadInt(in, ws.viewDistance)) return false;
     if (!ReadInt(in, ws.maxUnloadChunkPerFrame)) return false;
     if (!ReadInt(in, ws.maxChunksLoadPerFrame)) return false;
+
+    int worldSeed = 0;
+    if (header.version >= 6) {
+        if (!ReadInt(in, worldSeed)) return false;
+    }
 
     double simTimeSec = 0.0;
     double timeScale = 1.0;
@@ -190,6 +218,21 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
     if (!ReadFloat(in, temperatureC)) return false;
     if (!ReadFloat(in, exposureScale)) return false;
 
+    bool dayNightCycleEnabled = true;
+    int farmingYear = 1;
+    int currentSeason = 0;
+    int startHour = 8;
+    if (header.version >= 4) {
+        uint8_t dayNightCycle = 1;
+        if (!ReadU8(in, dayNightCycle)) return false;
+        dayNightCycleEnabled = (dayNightCycle != 0);
+        if (header.version >= 5) {
+            if (!ReadInt(in, farmingYear)) return false;
+        }
+        if (!ReadInt(in, currentSeason)) return false;
+        if (!ReadInt(in, startHour)) return false;
+    }
+
     uint32_t chimneyCount = 0;
     if (!ReadU32(in, chimneyCount)) return false;
 
@@ -201,26 +244,67 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
         if (!ReadDouble(in, c.worldPos.x)) return false;
         if (!ReadDouble(in, c.worldPos.y)) return false;
         if (!ReadDouble(in, c.worldPos.z)) return false;
+        if (header.version >= 3) {
+            if (!ReadInt(in, c.baseBlockCoord.x)) return false;
+            if (!ReadInt(in, c.baseBlockCoord.y)) return false;
+            if (!ReadInt(in, c.baseBlockCoord.z)) return false;
+        } else {
+            c.baseBlockCoord = {
+                static_cast<int>(std::floor(c.worldPos.x)),
+                static_cast<int>(std::floor(c.worldPos.y)),
+                static_cast<int>(std::floor(c.worldPos.z))
+            };
+        }
         if (!ReadDouble(in, c.height)) return false;
         if (!ReadDouble(in, c.exitVelocity)) return false;
         if (!ReadDouble(in, c.radius)) return false;
+        if (header.version >= 3) {
+            uint8_t enabled = 1;
+            if (!ReadU8(in, enabled)) return false;
+            c.enabled = (enabled != 0);
+        } else {
+            c.enabled = true;
+        }
         chimneys.push_back(c);
+    }
+
+    yc::world::CropExposureMap cropExposure;
+    if (header.version >= 2) {
+        uint32_t cropCount = 0;
+        if (!ReadU32(in, cropCount)) return false;
+
+        for (uint32_t i = 0; i < cropCount; ++i) {
+            int x = 0, y = 0, z = 0;
+            double exposure = 0.0;
+            if (!ReadInt(in, x)) return false;
+            if (!ReadInt(in, y)) return false;
+            if (!ReadInt(in, z)) return false;
+            if (!ReadDouble(in, exposure)) return false;
+            cropExposure[{ x, y, z }] = exposure;
+        }
     }
 
     settings.world = ws;
     settings.game.timeScale = timeScale;
     settings.game.temperatureC = temperatureC;
     settings.exposure.exposureScale = exposureScale;
+    settings.game.dayNightCycleEnabled = dayNightCycleEnabled;
+    settings.game.currentSeason = std::clamp(currentSeason, 0, 3);
+    settings.game.startHour = std::clamp(startHour, 0, 23);
 
     world.setSettings(ws);
     world.setExposureScale(exposureScale);
+    world.setSeed(worldSeed);
     world.setChimneyEmitters(chimneys);
 
     gameManager.setTimeScale(timeScale);
     gameManager.setTemperatureC(temperatureC);
     gameManager.setExposureScale(exposureScale);
+    gameManager.setDayNightCycleEnabled(dayNightCycleEnabled);
+    gameManager.setFarmingYear(farmingYear);
     gameManager.setSimTimeSec(simTimeSec);
     gameManager.setSimulationRunning(running != 0);
+    gameManager.setCropExposureByBlock(cropExposure);
 
     return true;
 }

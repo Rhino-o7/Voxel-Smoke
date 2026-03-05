@@ -24,7 +24,9 @@ public:
 
     void render();
 
-    void pause(yc::Application* application);
+    void pause(yc::Application* application, PausePage page = PausePage::Main);
+
+    void setPausePage(PausePage page);
 
     void resume();
 
@@ -33,6 +35,7 @@ private:
     std::shared_ptr<GameScene> gameScene;
     std::shared_ptr<PauseScene> pauseScene;
     std::shared_ptr<SaveSelectScene> saveSelectScene;
+    yc::Application* application = nullptr;
     yc::GameManager* gameManager = nullptr;
 };
 
