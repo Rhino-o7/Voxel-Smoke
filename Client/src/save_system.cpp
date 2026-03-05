@@ -11,7 +11,7 @@ namespace fs = std::filesystem;
 
 namespace {
     constexpr uint32_t SaveMagic = 0x56534359; // "YCSV"
-    constexpr uint32_t SaveVersion = 5;
+    constexpr uint32_t SaveVersion = 6;
 
     struct SaveHeader {
         uint32_t magic = SaveMagic;
@@ -133,6 +133,7 @@ bool SaveSystem::saveGame(const Settings& settings, const GameManager& gameManag
     if (!WriteInt(out, ws.viewDistance)) return false;
     if (!WriteInt(out, ws.maxUnloadChunkPerFrame)) return false;
     if (!WriteInt(out, ws.maxChunksLoadPerFrame)) return false;
+    if (!WriteInt(out, world.getSeed())) return false;
 
     if (!WriteDouble(out, gameManager.getSimTimeSec())) return false;
     if (!WriteDouble(out, gameManager.getTimeScale())) return false;
@@ -198,6 +199,11 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
     if (!ReadInt(in, ws.viewDistance)) return false;
     if (!ReadInt(in, ws.maxUnloadChunkPerFrame)) return false;
     if (!ReadInt(in, ws.maxChunksLoadPerFrame)) return false;
+
+    int worldSeed = 0;
+    if (header.version >= 6) {
+        if (!ReadInt(in, worldSeed)) return false;
+    }
 
     double simTimeSec = 0.0;
     double timeScale = 1.0;
@@ -288,6 +294,7 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
 
     world.setSettings(ws);
     world.setExposureScale(exposureScale);
+    world.setSeed(worldSeed);
     world.setChimneyEmitters(chimneys);
 
     gameManager.setTimeScale(timeScale);

@@ -350,7 +350,7 @@ namespace yc {
     int32_t Application::Width;
     int32_t Application::Height;
 
-    bool Application::createNewSave(const std::string& name) {
+    bool Application::createNewSave(const std::string& name, int32_t seed) {
         // Ensure current game is saved before creating a new save slot
         saveCurrentGame();
 
@@ -360,6 +360,7 @@ namespace yc {
 
         world->clearChunks();
         world->clearChimneyEmitters();
+        world->setSeed(seed);
         persistence->reset(saveSystem.getPaths().regionsRoot.string());
 
         gameManager.resetRound();

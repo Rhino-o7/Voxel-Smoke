@@ -135,6 +135,9 @@ void SmokeVolumeRenderer::render(yc::Camera* camera,
     }
 
     const double dt = simTimeSec - lastSimTimeSec;
+    if (hasWind && dt < 0.0) {
+        hasWind = false;
+    }
     // If simulation time hasn't advanced (paused or stopped), skip rendering smoke so
     // the visual disappears while paused. Update lastSimTimeSec so when time resumes
     // we start blending from the correct simulation time.
@@ -164,9 +167,7 @@ void SmokeVolumeRenderer::render(yc::Camera* camera,
 
     lastSimTimeSec = simTimeSec;
 
-    if (smoothedWindSpeed <= 1e-6f) {
-        return;
-    }
+    const float effectiveWindSpeed = std::max(smoothedWindSpeed, 0.25f);
 
     const float variationScale = std::max(settings.windVariationScale, 0.01f);
     const float variationPhase = static_cast<float>(simTimeSec) * variationScale + windNoiseSeed;
@@ -187,8 +188,8 @@ void SmokeVolumeRenderer::render(yc::Camera* camera,
         lastInputWindSpeed = static_cast<float>(wind.speed);
     }
 
-    const float jitteredSpeed = std::max(0.0f, smoothedWindSpeed + speedJitter * smoothedWindSpeed);
-    const float maxSpeed = std::max(jitteredSpeed, prevWindSpeed);
+    const float jitteredSpeed = std::max(0.0f, effectiveWindSpeed + speedJitter * effectiveWindSpeed);
+    const float maxSpeed = std::max(jitteredSpeed, std::max(prevWindSpeed, effectiveWindSpeed));
     const double downwindMax = std::min(static_cast<double>(settings.boxDownwind), static_cast<double>(maxSpeed) * simTimeSec);
     if (downwindMax <= 0.01) {
         return;
@@ -237,7 +238,7 @@ void SmokeVolumeRenderer::render(yc::Camera* camera,
 
         glm::vec3 boxMin;
         glm::vec3 boxMax;
-        if (!computePlumeBounds(source, smoothedWindSpeed, windDirD, downwindMax, settings, boxMin, boxMax)) {
+        if (!computePlumeBounds(source, jitteredSpeed, windDirD, downwindMax, settings, boxMin, boxMax)) {
             continue;
         }
 

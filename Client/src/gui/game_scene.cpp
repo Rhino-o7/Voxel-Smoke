@@ -21,6 +21,10 @@ void GameScene::render() {
     ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 10.0f, 10.0f), ImGuiCond_Always, ImVec2(1.0f, 0.0f));
     ImGui::Begin("debug", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize);
     ImGui::Text("FPS: %.0f", 1.0f / yc::Application::GetDeltaTime());
+    if (gameManager && gameManager->getWorld()) {
+        const auto cullingStats = gameManager->getWorld()->getCullingStats();
+        ImGui::Text("Chunks Loaded/Visible/Culled:\n %zu / %zu / %zu", cullingStats.loadedChunks, cullingStats.visibleChunks, cullingStats.culledChunks);
+    }
 
     auto postion = player->getCamera()->getPosition();
     ImGui::Text("Position: %.0f %.0f %.0f", postion.x, postion.y, postion.z);

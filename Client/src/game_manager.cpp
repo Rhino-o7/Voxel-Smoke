@@ -66,6 +66,49 @@ void GameManager::pauseTime() {
     stopSimulation();
 }
 
+void GameManager::skipToEndOfCurrentSeason() {
+    const int secondsPerDay = HoursPerDay * 3600;
+    const double currentSimTime = getSimTimeSec();
+    const int absoluteDay = static_cast<int>(std::floor(currentSimTime / static_cast<double>(secondsPerDay)));
+    const int dayInYearZeroBased = positiveMod(absoluteDay, DaysPerYear);
+    const int dayInSeasonZeroBased = dayInYearZeroBased % DaysPerSeason;
+    const int daysRemainingInSeason = (DaysPerSeason - 1) - dayInSeasonZeroBased;
+    const int targetAbsoluteDay = absoluteDay + daysRemainingInSeason;
+    const double targetSimTime = static_cast<double>(targetAbsoluteDay * secondsPerDay + (secondsPerDay - 1));
+
+    if (currentSimTime >= targetSimTime) {
+        return;
+    }
+
+    registerLoadedCropBlocks();
+
+    constexpr double integrationStepSec = 60.0;
+    double simTime = currentSimTime;
+
+    while (simTime < targetSimTime) {
+        const double step = std::min(integrationStepSec, targetSimTime - simTime);
+        simTime += step;
+        clock.setSimTimeSec(simTime);
+
+        wind.update(clock.getSimTimeSec());
+        currentWindState = wind.current();
+        pollution.setWind(currentWindState);
+
+        if (world) {
+            world->setWindState(currentWindState);
+            world->setSimTimeSec(clock.getSimTimeSec());
+        }
+
+        updateCalendarState();
+        finishHarvestIfNeeded();
+        updateCropExposure(step);
+
+        if (gameOver) {
+            break;
+        }
+    }
+}
+
 void GameManager::resumeTime() {
     if (resumeOnUnpause) {
         startSimulation();

@@ -90,11 +90,12 @@ void SkyBox::init() {
     // glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 }
 
-void SkyBox::render(yc::Camera* camera) {
+void SkyBox::render(yc::Camera* camera, float daylight) {
     glDepthFunc(GL_LEQUAL);
 
     yc::Resource::SkyBoxShader.use();
     yc::Resource::SkyBoxShader.setMat4("projection_view",camera->getProjectionMatrix()*glm::mat4(glm::mat3(camera->getViewMatrix())));
+    yc::Resource::SkyBoxShader.setFloat("daylight", daylight);
     yc::Resource::SkyBoxShader.setInt("skybox", 0);
 
     glBindVertexArray(this->vao);

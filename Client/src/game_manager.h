@@ -105,6 +105,7 @@ public:
     void registerLoadedCropBlocks();
     void scheduleLoadedCropRegistration(int ticks = 180);
     double getCropExposureAtBlock(const yc::world::BlockPos& blockPos) const;
+    yc::world::World* getWorld() const { return world; }
     const yc::world::CropExposureMap& getCropExposureByBlock() const { return cropExposureByBlock; }
     void setCropExposureByBlock(const yc::world::CropExposureMap& map) { cropExposureByBlock = map; }
     float getCropHealthPercent() const;
@@ -113,6 +114,7 @@ public:
     bool isGameOver() const { return gameOver; }
     void resetRound();
     void continueToNextFarmingYear();
+    void skipToEndOfCurrentSeason();
     int getFarmingYear() const { return farmingYear; }
     void setFarmingYear(int value) { farmingYear = std::max(1, value); }
 

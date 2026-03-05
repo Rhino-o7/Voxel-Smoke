@@ -19,6 +19,94 @@ static float Clamp01(float v) {
     return std::max(0.0f, std::min(1.0f, v));
 }
 
+struct ViewFrustum {
+    std::array<glm::vec4, 6> planes{};
+};
+
+static void NormalizePlane(glm::vec4& plane) {
+    const glm::vec3 normal{ plane.x, plane.y, plane.z };
+    const float length = glm::length(normal);
+    if (length <= 0.0f) {
+        return;
+    }
+
+    plane /= length;
+}
+
+static ViewFrustum BuildFrustumFromMatrix(const glm::mat4& matrix) {
+    ViewFrustum frustum{};
+
+    frustum.planes[0] = {
+        matrix[0][3] + matrix[0][0],
+        matrix[1][3] + matrix[1][0],
+        matrix[2][3] + matrix[2][0],
+        matrix[3][3] + matrix[3][0]
+    }; // Left
+    frustum.planes[1] = {
+        matrix[0][3] - matrix[0][0],
+        matrix[1][3] - matrix[1][0],
+        matrix[2][3] - matrix[2][0],
+        matrix[3][3] - matrix[3][0]
+    }; // Right
+    frustum.planes[2] = {
+        matrix[0][3] + matrix[0][1],
+        matrix[1][3] + matrix[1][1],
+        matrix[2][3] + matrix[2][1],
+        matrix[3][3] + matrix[3][1]
+    }; // Bottom
+    frustum.planes[3] = {
+        matrix[0][3] - matrix[0][1],
+        matrix[1][3] - matrix[1][1],
+        matrix[2][3] - matrix[2][1],
+        matrix[3][3] - matrix[3][1]
+    }; // Top
+    frustum.planes[4] = {
+        matrix[0][3] + matrix[0][2],
+        matrix[1][3] + matrix[1][2],
+        matrix[2][3] + matrix[2][2],
+        matrix[3][3] + matrix[3][2]
+    }; // Near
+    frustum.planes[5] = {
+        matrix[0][3] - matrix[0][2],
+        matrix[1][3] - matrix[1][2],
+        matrix[2][3] - matrix[2][2],
+        matrix[3][3] - matrix[3][2]
+    }; // Far
+
+    for (auto& plane : frustum.planes) {
+        NormalizePlane(plane);
+    }
+
+    return frustum;
+}
+
+static bool IsChunkVisibleInFrustum(const glm::ivec2& chunkCoord, const ViewFrustum& frustum) {
+    const glm::vec3 minCorner{
+        static_cast<float>(chunkCoord.x * Chunk::Length),
+        0.0f,
+        static_cast<float>(chunkCoord.y * Chunk::Width)
+    };
+    const glm::vec3 maxCorner{
+        minCorner.x + static_cast<float>(Chunk::Length),
+        static_cast<float>(Chunk::Height),
+        minCorner.z + static_cast<float>(Chunk::Width)
+    };
+
+    for (const auto& plane : frustum.planes) {
+        const glm::vec3 positiveVertex{
+            (plane.x >= 0.0f) ? maxCorner.x : minCorner.x,
+            (plane.y >= 0.0f) ? maxCorner.y : minCorner.y,
+            (plane.z >= 0.0f) ? maxCorner.z : minCorner.z
+        };
+
+        if (glm::dot(glm::vec3(plane), positiveVertex) + plane.w < 0.0f) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool World::removeChimneyEmitterContainingBlock(const BlockPos& blockCoord) {
     for (size_t i = 0; i < chimneyEmitters.size(); ++i) {
         const auto& source = chimneyEmitters[i];
@@ -333,14 +421,35 @@ std::vector<BlockPos> World::getLoadedBlockPositionsOfType(BlockType type) const
     return result;
 }
 
+World::CullingStats World::getCullingStats() const {
+    CullingStats stats{};
+    stats.loadedChunks = chunks.size();
+    stats.visibleChunks = visibleChunkCount;
+    stats.culledChunks = (stats.loadedChunks > stats.visibleChunks)
+        ? (stats.loadedChunks - stats.visibleChunks)
+        : 0;
+    return stats;
+}
+
 void World::renderOpaque(Camera* camera) {
     yc::Resource::GameTexure.bind();
     
     yc::Resource::OpaqueShader.use();
-    yc::Resource::OpaqueShader.setMat4("projection_view", camera->getProjectionViewMatrix());
+    const glm::mat4 projectionView = camera->getProjectionViewMatrix();
+    const ViewFrustum frustum = BuildFrustumFromMatrix(projectionView);
+
+    yc::Resource::OpaqueShader.setMat4("projection_view", projectionView);
     yc::Resource::OpaqueShader.setFloat("uExposureScale", exposureScale);
 
+    visibleChunkCount = 0;
+
     for (const auto& [coord, chunk]: this->chunks) {
+        if (!IsChunkVisibleInFrustum(coord, frustum)) {
+            continue;
+        }
+
+        ++visibleChunkCount;
+
         auto model = glm::translate(glm::mat4(1.0f), glm::vec3(coord.x * Chunk::Length, 0, coord.y * Chunk::Width));
         yc::Resource::OpaqueShader.setMat4("model", model);
         chunk->renderOpaque();
@@ -351,10 +460,17 @@ void World::renderTransparent(Camera* camera) {
     yc::Resource::GameTexure.bind();
 
     yc:: Resource::TransparentShader.use();
-    yc:: Resource::TransparentShader.setMat4("projection_view", camera->getProjectionViewMatrix());
+    const glm::mat4 projectionView = camera->getProjectionViewMatrix();
+    const ViewFrustum frustum = BuildFrustumFromMatrix(projectionView);
+
+    yc:: Resource::TransparentShader.setMat4("projection_view", projectionView);
     yc:: Resource::TransparentShader.setFloat("uExposureScale", exposureScale);
 
     for (const auto& [coord, chunk]: this->chunks) {
+        if (!IsChunkVisibleInFrustum(coord, frustum)) {
+            continue;
+        }
+
         auto model = glm::translate(glm::mat4(1.0f), glm::vec3(coord.x * Chunk::Length, 0, coord.y * Chunk::Width));
         yc:: Resource::TransparentShader.setMat4("model", model);
         chunk->renderTransparent();
@@ -365,9 +481,16 @@ void World::renderFlora(yc::Camera* camera) {
     yc::Resource::GameTexure.bind();
 
     yc::Resource::FloraShader.use();
-    yc::Resource::FloraShader.setMat4("projection_view", camera->getProjectionViewMatrix());
+    const glm::mat4 projectionView = camera->getProjectionViewMatrix();
+    const ViewFrustum frustum = BuildFrustumFromMatrix(projectionView);
+
+    yc::Resource::FloraShader.setMat4("projection_view", projectionView);
 
     for (const auto& [coord, chunk]: this->chunks) {
+        if (!IsChunkVisibleInFrustum(coord, frustum)) {
+            continue;
+        }
+
         auto model = glm::translate(glm::mat4(1.0f), glm::vec3(coord.x * Chunk::Length, 0, coord.y * Chunk::Width));
         yc::Resource::FloraShader.setMat4("model", model);
         chunk->renderFlora();
@@ -615,6 +738,14 @@ World::RayCastResult World::raycastCheck(const glm::vec3& position, const glm::v
     }
 
     return result;
+}
+
+int32_t World::getSeed() const {
+    return generator.getSeed();
+}
+
+void World::setSeed(int32_t seed) {
+    generator.setSeed(seed);
 }
 
 void World::clearChunks() {

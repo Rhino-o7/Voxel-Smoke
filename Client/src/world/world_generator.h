@@ -80,6 +80,9 @@ public:
     WorldGenerator(int32_t seed);
     WorldGenerator(int32_t seed, const TerrainConfig& config);
 
+    int32_t getSeed() const { return seed; }
+    void setSeed(int32_t value);
+
     void setTerrainConfig(const TerrainConfig& config);
 
     std::shared_ptr<Chunk> generateChunk(World* world, const glm::ivec2& chunkCoord);

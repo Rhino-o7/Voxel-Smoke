@@ -45,6 +45,10 @@ void PauseScene::renderMainPage() {
         activePage = PausePage::Settings;
     }
 
+    if (ImGui::Button("Skip To End Of Season", menuButtonSize)) {
+        application->getGameManager().skipToEndOfCurrentSeason();
+    }
+
     if (ImGui::Button("Save Select", menuButtonSize)) {
         application->setSaveSelectionActive(true);
     }

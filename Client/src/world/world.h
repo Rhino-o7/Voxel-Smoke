@@ -43,6 +43,12 @@ public:
         glm::ivec3 face;
     };
 
+    struct CullingStats {
+        size_t loadedChunks = 0;
+        size_t visibleChunks = 0;
+        size_t culledChunks = 0;
+    };
+
     static glm::ivec2 GetChunkCoordOf(const glm::ivec3& coord);
 
     World() : generator(0), persistence(nullptr), exposureScale(0.0f) {}
@@ -81,6 +87,7 @@ public:
     RayCastResult raycastCheck(const glm::vec3& position, const glm::vec3& direction, bool discardFlora, bool discardWater);
 
     int32_t getSeed() const;
+    void setSeed(int32_t seed);
 
     void addChimneyEmitter(const BlockPos& baseBlockCoord, double height, double exitVelocity, double radius);
     bool removeChimneyEmitterAt(size_t index);
@@ -102,6 +109,7 @@ public:
     void setCropExposureMap(const CropExposureMap* map);
     double getCropExposureAtBlock(const BlockPos& blockPos) const;
     std::vector<BlockPos> getLoadedBlockPositionsOfType(BlockType type) const;
+    CullingStats getCullingStats() const;
 
     void setSettings(const yc::Settings::WorldSettings& value) { settings = value; }
     const yc::Settings::WorldSettings& getSettings() const { return settings; }
@@ -142,6 +150,7 @@ private:
     yc::Settings::WorldSettings settings{};
     yc::Settings::SmokeSettings smokeSettings{};
     float exposureScale;
+    size_t visibleChunkCount = 0;
 
     mutable std::shared_mutex chunksMutex;
 };

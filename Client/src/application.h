@@ -53,7 +53,7 @@ public:
     void pauseGame();
     void resumeGame();
 
-    bool createNewSave(const std::string& name);
+    bool createNewSave(const std::string& name, int32_t seed);
     bool loadSave(const std::string& name);
     bool deleteSave(const std::string& name);
     std::vector<std::string> listSaves() const;
