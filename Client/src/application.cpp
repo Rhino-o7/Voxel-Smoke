@@ -124,9 +124,15 @@ namespace yc {
             if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
                 player->moveRight();
             if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-                player->moveUp();
+                if (player->isFlyMode()) {
+                    player->moveUp();
+                } else {
+                    player->jump();
+                }
             if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-                player->moveDown();
+                if (player->isFlyMode()) {
+                    player->moveDown();
+                }
             player->update();
             world->update(player->getCamera());
         }
@@ -340,6 +346,9 @@ namespace yc {
         gameManager.applySettings(settings);
         if (player) {
             player->getCamera()->setFovDeg(settings.camera.fovDeg);
+            player->setMoveSpeed(settings.player.moveSpeed);
+            player->setGravityMultiplier(settings.player.gravityMultiplier);
+            player->setJumpHeight(settings.player.jumpHeight);
         }
     }
 

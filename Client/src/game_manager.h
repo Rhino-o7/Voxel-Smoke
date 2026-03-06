@@ -108,6 +108,7 @@ public:
     yc::world::World* getWorld() const { return world; }
     const yc::world::CropExposureMap& getCropExposureByBlock() const { return cropExposureByBlock; }
     void setCropExposureByBlock(const yc::world::CropExposureMap& map) { cropExposureByBlock = map; }
+    int getCropBlockCount() const { return static_cast<int>(cropExposureByBlock.size()); }
     float getCropHealthPercent() const;
     float getCropScoreAtBlock(const yc::world::BlockPos& blockPos) const;
     HarvestResult getHarvestResult() const { return harvestResult; }

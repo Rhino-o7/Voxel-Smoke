@@ -3,6 +3,8 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 #include "application.h"
+#include <algorithm>
+#include <cmath>
 
 namespace yc::gui {
 
@@ -29,6 +31,7 @@ void GUI::init(GLFWwindow* window) {
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
+    baseStyle = ImGui::GetStyle();
     //ImGui::StyleColorsLight();
 
     // Setup Platform/Renderer backends
@@ -41,6 +44,23 @@ void GUI::init(GLFWwindow* window) {
     config.OversampleV = 1;
     config.PixelSnapH = true;
     io.Fonts->AddFontDefault(&config);
+}
+
+void GUI::updateUiScale() {
+    if (!application) {
+        return;
+    }
+
+    const float uiScale = std::clamp(application->getSettings().ui.scale, 0.75f, 2.0f);
+    if (std::fabs(uiScale - appliedUiScale) <= 0.001f) {
+        return;
+    }
+
+    ImGuiStyle& style = ImGui::GetStyle();
+    style = baseStyle;
+    style.ScaleAllSizes(uiScale);
+    ImGui::GetIO().FontGlobalScale = uiScale;
+    appliedUiScale = uiScale;
 }
 
 void GUI::update(yc::Application* application, Player* player, yc::GameManager* gameManager) {
@@ -81,6 +101,7 @@ void GUI::render() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
+    updateUiScale();
 
     if (saveSelectScene) {
         saveSelectScene->render();
@@ -116,7 +137,7 @@ void GUI::render() {
         ImGui::PopStyleColor();
 
         const auto io = ImGui::GetIO();
-        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, 340.0f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
         ImGui::Begin("game_over_menu", nullptr,
             ImGuiWindowFlags_AlwaysAutoResize
             | ImGuiWindowFlags_NoTitleBar
@@ -130,7 +151,8 @@ void GUI::render() {
         ImGui::Text("Crops Produced: %d / %d", result.producedCrops, result.maxCrops);
         ImGui::Spacing();
 
-        const ImVec2 nextYearButtonSize(300.0f, 38.0f);
+        const float uiScale = std::clamp(application ? application->getSettings().ui.scale : 1.0f, 0.75f, 2.0f);
+        const ImVec2 nextYearButtonSize(300.0f * uiScale, 38.0f * uiScale);
         if (ImGui::Button("Continue To Next Farming Year", nextYearButtonSize)) {
             gameManager->continueToNextFarmingYear();
         }
@@ -159,16 +181,16 @@ void GUI::render() {
                               | ImGuiWindowFlags_NoSavedSettings
                               | ImGuiWindowFlags_AlwaysAutoResize;
 
-    ImGui::SetNextWindowPos(ImVec2(20.0f, 20.0f), ImGuiCond_Always);
+    const float uiScale = std::clamp(application ? application->getSettings().ui.scale : 1.0f, 0.75f, 2.0f);
+    ImGui::SetNextWindowPos(ImVec2(20.0f * uiScale, 20.0f * uiScale), ImGuiCond_Always);
     ImGui::Begin("HUD", nullptr, hudFlags);
 
     float healthPercent = gameManager ? gameManager->getCropHealthPercent() : 1.0f;
-    const float scorePercent = healthPercent * 100.0f;
 
     ImGui::Text("Crop Score");
-    ImVec2 barSize(200.0f, 20.0f);
+    ImVec2 barSize(200.0f * uiScale, 20.0f * uiScale);
     ImGui::ProgressBar(healthPercent, barSize);
-    ImGui::Text("Average: %.1f / 100", scorePercent);
+    ImGui::Text("Crop Blocks: %d", gameManager ? gameManager->getCropBlockCount() : 0);
     ImGui::Spacing();
 
     if (gameManager) {

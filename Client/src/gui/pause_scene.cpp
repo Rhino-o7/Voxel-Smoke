@@ -31,29 +31,44 @@ void PauseScene::syncWindPathBuffer() {
 }
 
 void PauseScene::renderMainPage() {
-    const ImVec2 menuButtonSize(260.0f, 36.0f);
+    const float uiScale = std::clamp(application ? application->getSettings().ui.scale : 1.0f, 0.75f, 2.0f);
+    const ImVec2 menuButtonSize(260.0f * uiScale, 36.0f * uiScale);
+    auto* player = application ? application->getPlayer() : nullptr;
+    const auto drawCenteredButton = [&](const char* label) -> bool {
+        const float availableWidth = ImGui::GetContentRegionAvail().x;
+        const float xOffset = std::max((availableWidth - menuButtonSize.x) * 0.5f, 0.0f);
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + xOffset);
+        return ImGui::Button(label, menuButtonSize);
+    };
 
-    if (ImGui::Button("Resume", menuButtonSize)) {
+    if (drawCenteredButton("Resume")) {
         application->resumeGame();
     }
 
-    if (ImGui::Button("Chimney Manager (1)", menuButtonSize)) {
+    if (player) {
+        const char* movementLabel = player->isFlyMode() ? "Mode: Fly" : "Mode: Walk";
+        if (drawCenteredButton(movementLabel)) {
+            player->toggleFlyMode();
+        }
+    }
+
+    if (drawCenteredButton("Chimney Manager (1)")) {
         activePage = PausePage::ChimneyManager;
     }
 
-    if (ImGui::Button("Settings (2)", menuButtonSize)) {
+    if (drawCenteredButton("Settings (2)")) {
         activePage = PausePage::Settings;
     }
 
-    if (ImGui::Button("Skip To End Of Season", menuButtonSize)) {
+    if (drawCenteredButton("Skip To End Of Season")) {
         application->getGameManager().skipToEndOfCurrentSeason();
     }
 
-    if (ImGui::Button("Save Select", menuButtonSize)) {
+    if (drawCenteredButton("Save Select")) {
         application->setSaveSelectionActive(true);
     }
 
-    if (ImGui::Button("Quit", menuButtonSize)) {
+    if (drawCenteredButton("Quit")) {
         application->stop();
     }
 }
@@ -150,6 +165,14 @@ void PauseScene::renderSettingsPage() {
     changed |= ImGui::SliderFloat("Temperature C", &settings.game.temperatureC, -40.0f, 60.0f, "%.1f");
     changed |= ImGui::Checkbox("Start Simulation Running", &settings.game.startSimulationRunning);
     changed |= ImGui::Checkbox("Day/Night Cycle Enabled", &settings.game.dayNightCycleEnabled);
+
+    changed |= ImGui::SliderFloat("UI Scale", &settings.ui.scale, 0.75f, 2.0f, "%.2f");
+
+    ImGui::Separator();
+    ImGui::Text("Player Movement");
+    changed |= ImGui::SliderFloat("Move Speed", &settings.player.moveSpeed, 1.0f, 200.0f, "%.1f");
+    changed |= ImGui::SliderFloat("Gravity Multiplier", &settings.player.gravityMultiplier, 0.1f, 5.0f, "%.2f");
+    changed |= ImGui::SliderFloat("Jump Height (Blocks)", &settings.player.jumpHeight, 0.5f, 4.0f, "%.2f");
 
     static const char* seasonLabels[] = { "Spring", "Summer", "Autumn", "Winter" };
     int seasonIndex = std::clamp(settings.game.currentSeason, 0, 3);
@@ -252,11 +275,17 @@ void PauseScene::render() {
     ImGui::End();
     ImGui::PopStyleColor();
     
-    auto io = ImGui::GetIO();
-    ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, 350), ImGuiCond_Always, ImVec2(0.5f,0.5f));
-    ImGui::Begin("pause_menu", NULL, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBackground);
+    const auto io = ImGui::GetIO();
+    const float uiScale = std::clamp(application ? application->getSettings().ui.scale : 1.0f, 0.75f, 2.0f);
+    const ImVec2 menuSize(
+        std::min(io.DisplaySize.x * 0.9f, 860.0f * uiScale),
+        std::min(io.DisplaySize.y * 0.9f, 760.0f * uiScale));
+
+    ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(menuSize, ImGuiCond_Always);
+    ImGui::Begin("pause_menu", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
     
-    const ImVec2 tabButtonSize(120.0f, 32.0f);
+    const ImVec2 tabButtonSize(120.0f * uiScale, 32.0f * uiScale);
     if (ImGui::Button("Main", tabButtonSize)) {
         activePage = PausePage::Main;
     }
@@ -270,6 +299,7 @@ void PauseScene::render() {
     }
 
     ImGui::Separator();
+    ImGui::BeginChild("pause_content", ImVec2(0.0f, 0.0f), false);
 
     switch (activePage) {
     case PausePage::Main:
@@ -282,6 +312,8 @@ void PauseScene::render() {
         renderSettingsPage();
         break;
     }
+
+    ImGui::EndChild();
 
     ImGui::End();
 }

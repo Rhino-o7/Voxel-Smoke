@@ -11,7 +11,7 @@ namespace fs = std::filesystem;
 
 namespace {
     constexpr uint32_t SaveMagic = 0x56534359; // "YCSV"
-    constexpr uint32_t SaveVersion = 6;
+    constexpr uint32_t SaveVersion = 8;
 
     struct SaveHeader {
         uint32_t magic = SaveMagic;
@@ -143,6 +143,10 @@ bool SaveSystem::saveGame(const Settings& settings, const GameManager& gameManag
 
     if (!WriteFloat(out, gameManager.getTemperatureC())) return false;
     if (!WriteFloat(out, world.getExposureScale())) return false;
+    if (!WriteFloat(out, settings.ui.scale)) return false;
+    if (!WriteFloat(out, settings.player.moveSpeed)) return false;
+    if (!WriteFloat(out, settings.player.gravityMultiplier)) return false;
+    if (!WriteFloat(out, settings.player.jumpHeight)) return false;
     if (!WriteU8(out, gameManager.isDayNightCycleEnabled() ? 1 : 0)) return false;
     if (!WriteInt(out, gameManager.getFarmingYear())) return false;
 
@@ -215,8 +219,20 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
 
     float temperatureC = 20.0f;
     float exposureScale = 0.01f;
+    float uiScale = 1.0f;
+    float moveSpeed = settings.player.moveSpeed;
+    float gravityMultiplier = settings.player.gravityMultiplier;
+    float jumpHeight = settings.player.jumpHeight;
     if (!ReadFloat(in, temperatureC)) return false;
     if (!ReadFloat(in, exposureScale)) return false;
+    if (header.version >= 7) {
+        if (!ReadFloat(in, uiScale)) return false;
+    }
+    if (header.version >= 8) {
+        if (!ReadFloat(in, moveSpeed)) return false;
+        if (!ReadFloat(in, gravityMultiplier)) return false;
+        if (!ReadFloat(in, jumpHeight)) return false;
+    }
 
     bool dayNightCycleEnabled = true;
     int farmingYear = 1;
@@ -288,6 +304,10 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
     settings.game.timeScale = timeScale;
     settings.game.temperatureC = temperatureC;
     settings.exposure.exposureScale = exposureScale;
+    settings.ui.scale = std::clamp(uiScale, 0.75f, 2.0f);
+    settings.player.moveSpeed = std::clamp(moveSpeed, 1.0f, 200.0f);
+    settings.player.gravityMultiplier = std::clamp(gravityMultiplier, 0.1f, 10.0f);
+    settings.player.jumpHeight = std::clamp(jumpHeight, 0.5f, 4.0f);
     settings.game.dayNightCycleEnabled = dayNightCycleEnabled;
     settings.game.currentSeason = std::clamp(currentSeason, 0, 3);
     settings.game.startHour = std::clamp(startHour, 0, 23);

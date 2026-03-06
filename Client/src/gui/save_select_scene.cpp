@@ -2,6 +2,7 @@
 #include "application.h"
 #include <imgui.h>
 #include <random>
+#include <algorithm>
 
 namespace {
 int32_t GenerateRandomSeed() {
@@ -29,9 +30,14 @@ void SaveSelectScene::refreshList() {
 
 void SaveSelectScene::render() {
     ImGuiIO& io = ImGui::GetIO();
+    const float uiScale = std::clamp(application ? application->getSettings().ui.scale : 1.0f, 0.75f, 2.0f);
+
+    const ImVec2 windowSize(
+        std::min(io.DisplaySize.x * 0.9f, 480.0f * uiScale),
+        std::min(io.DisplaySize.y * 0.9f, 420.0f * uiScale));
 
     ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(480.0f, 420.0f), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(windowSize, ImGuiCond_Always);
 
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove;
     ImGui::Begin("Select Save", nullptr, flags);
@@ -43,7 +49,7 @@ void SaveSelectScene::render() {
     ImGui::Separator();
     ImGui::Text("Saves:");
 
-    ImGui::BeginChild("save_list", ImVec2(0.0f, 200.0f), true);
+    ImGui::BeginChild("save_list", ImVec2(0.0f, 200.0f * uiScale), true);
     for (int i = 0; i < static_cast<int>(saveNames.size()); ++i) {
         bool selected = (i == selectedIndex);
         if (ImGui::Selectable(saveNames[i].c_str(), selected)) {

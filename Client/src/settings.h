@@ -5,6 +5,10 @@
 namespace yc {
 
 struct Settings {
+    struct UiSettings {
+        float scale = 1.0f;
+    } ui;
+
     struct ExposureSettings {
         float exposureScale = 0.001f;
     } exposure;
@@ -28,6 +32,12 @@ struct Settings {
     struct CameraSettings {
         float fovDeg = 70.0f;
     } camera;
+
+    struct PlayerSettings {
+        float moveSpeed = 50.0f;
+        float gravityMultiplier = 1.0f;
+        float jumpHeight = 1.0f;
+    } player;
 
     struct ChimneySettings {
         int height = 20;
