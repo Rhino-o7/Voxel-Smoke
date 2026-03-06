@@ -9,6 +9,7 @@
 #include "world/world.h"
 #include "util/math.h"
 #include "resource.h"
+#include "graphic/lighting.h"
 #include <sstream>
 #include <array>
 #include <algorithm>
@@ -437,9 +438,11 @@ void World::renderOpaque(Camera* camera) {
     yc::Resource::OpaqueShader.use();
     const glm::mat4 projectionView = camera->getProjectionViewMatrix();
     const ViewFrustum frustum = BuildFrustumFromMatrix(projectionView);
+    const auto lightingState = yc::graphic::lighting::BuildLightingState(simTimeSec, lightingSettings);
 
     yc::Resource::OpaqueShader.setMat4("projection_view", projectionView);
     yc::Resource::OpaqueShader.setFloat("uExposureScale", exposureScale);
+    yc::graphic::lighting::ApplyLightingUniforms(yc::Resource::OpaqueShader, lightingState, camera->getPosition());
 
     visibleChunkCount = 0;
 
@@ -462,9 +465,15 @@ void World::renderTransparent(Camera* camera) {
     yc:: Resource::TransparentShader.use();
     const glm::mat4 projectionView = camera->getProjectionViewMatrix();
     const ViewFrustum frustum = BuildFrustumFromMatrix(projectionView);
+    const auto lightingState = yc::graphic::lighting::BuildLightingState(simTimeSec, lightingSettings);
 
     yc:: Resource::TransparentShader.setMat4("projection_view", projectionView);
     yc:: Resource::TransparentShader.setFloat("uExposureScale", exposureScale);
+    yc::Resource::TransparentShader.setVec3("uWaterTint", glm::vec3(lightingSettings.waterTintR, lightingSettings.waterTintG, lightingSettings.waterTintB));
+    yc::Resource::TransparentShader.setFloat("uWaterDiffuseMul", lightingSettings.waterDiffuseMul);
+    yc::Resource::TransparentShader.setFloat("uWaterSpecularMul", lightingSettings.waterSpecularMul);
+    yc::Resource::TransparentShader.setFloat("uWaterMinAlpha", lightingSettings.waterMinAlpha);
+    yc::graphic::lighting::ApplyLightingUniforms(yc::Resource::TransparentShader, lightingState, camera->getPosition());
 
     for (const auto& [coord, chunk]: this->chunks) {
         if (!IsChunkVisibleInFrustum(coord, frustum)) {
@@ -483,8 +492,10 @@ void World::renderFlora(yc::Camera* camera) {
     yc::Resource::FloraShader.use();
     const glm::mat4 projectionView = camera->getProjectionViewMatrix();
     const ViewFrustum frustum = BuildFrustumFromMatrix(projectionView);
+    const auto lightingState = yc::graphic::lighting::BuildLightingState(simTimeSec, lightingSettings);
 
     yc::Resource::FloraShader.setMat4("projection_view", projectionView);
+    yc::graphic::lighting::ApplyLightingUniforms(yc::Resource::FloraShader, lightingState, camera->getPosition());
 
     for (const auto& [coord, chunk]: this->chunks) {
         if (!IsChunkVisibleInFrustum(coord, frustum)) {

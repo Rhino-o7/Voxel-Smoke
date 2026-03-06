@@ -40,6 +40,7 @@ private:
     // | 20-20 |  y-uv  | 
     // | 21-24 | tex-x  |
     // | 25-28 | tex-y  | 
+    // | 29-31 | face   | 0->5 (front, back, right, left, top, bottom)
     uint32_t data;
 };
 

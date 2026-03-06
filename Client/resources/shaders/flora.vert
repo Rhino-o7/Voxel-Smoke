@@ -9,12 +9,15 @@ uniform mat4 projection_view;
 
 out vec2 uv;
 flat out uvec2 texcoord;
+out vec3 vWorldPos;
 
 void main()
 {
     texcoord.x = bitfieldExtract(texcoord_data, 0, 4);
     texcoord.y = bitfieldExtract(texcoord_data, 4, 4);
     texcoord.y = 15 - texcoord.y;
-    gl_Position = projection_view * model * vec4(coord, 1.0);
+    vec4 worldPos = model * vec4(coord, 1.0);
+    vWorldPos = worldPos.xyz;
+    gl_Position = projection_view * worldPos;
     uv = pass_uv;
 }  

@@ -93,6 +93,21 @@ uint32_t BlockVertex::getData() const {
 }
 
 void BlockVertex::setBlockType(yc::world::BlockType blockType, const glm::ivec3& faceDirection) {
+    uint32_t faceIndex = 0;
+    if (faceDirection.x == +1) {
+        faceIndex = 2;
+    } else if (faceDirection.x == -1) {
+        faceIndex = 3;
+    } else if (faceDirection.y == +1) {
+        faceIndex = 4;
+    } else if (faceDirection.y == -1) {
+        faceIndex = 5;
+    } else if (faceDirection.z == -1) {
+        faceIndex = 1;
+    }
+
+    this->data |= (faceIndex << 29);
+
     switch (blockType) {
         case yc::world::BlockType::GRASS_BLOCK:
             if (faceDirection.y == 1) {

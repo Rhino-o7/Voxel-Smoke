@@ -11,7 +11,7 @@ namespace fs = std::filesystem;
 
 namespace {
     constexpr uint32_t SaveMagic = 0x56534359; // "YCSV"
-    constexpr uint32_t SaveVersion = 8;
+    constexpr uint32_t SaveVersion = 9;
 
     struct SaveHeader {
         uint32_t magic = SaveMagic;
@@ -147,6 +147,26 @@ bool SaveSystem::saveGame(const Settings& settings, const GameManager& gameManag
     if (!WriteFloat(out, settings.player.moveSpeed)) return false;
     if (!WriteFloat(out, settings.player.gravityMultiplier)) return false;
     if (!WriteFloat(out, settings.player.jumpHeight)) return false;
+    if (!WriteFloat(out, settings.lighting.sunDirectionX)) return false;
+    if (!WriteFloat(out, settings.lighting.sunDirectionY)) return false;
+    if (!WriteFloat(out, settings.lighting.sunDirectionZ)) return false;
+    if (!WriteFloat(out, settings.lighting.sunriseStartHour)) return false;
+    if (!WriteFloat(out, settings.lighting.dayStartHour)) return false;
+    if (!WriteFloat(out, settings.lighting.dayEndHour)) return false;
+    if (!WriteFloat(out, settings.lighting.nightStartHour)) return false;
+    if (!WriteFloat(out, settings.lighting.ambientNight)) return false;
+    if (!WriteFloat(out, settings.lighting.ambientDay)) return false;
+    if (!WriteFloat(out, settings.lighting.diffuseNight)) return false;
+    if (!WriteFloat(out, settings.lighting.diffuseDay)) return false;
+    if (!WriteFloat(out, settings.lighting.specularNight)) return false;
+    if (!WriteFloat(out, settings.lighting.specularDay)) return false;
+    if (!WriteFloat(out, settings.lighting.shininess)) return false;
+    if (!WriteFloat(out, settings.lighting.waterTintR)) return false;
+    if (!WriteFloat(out, settings.lighting.waterTintG)) return false;
+    if (!WriteFloat(out, settings.lighting.waterTintB)) return false;
+    if (!WriteFloat(out, settings.lighting.waterDiffuseMul)) return false;
+    if (!WriteFloat(out, settings.lighting.waterSpecularMul)) return false;
+    if (!WriteFloat(out, settings.lighting.waterMinAlpha)) return false;
     if (!WriteU8(out, gameManager.isDayNightCycleEnabled() ? 1 : 0)) return false;
     if (!WriteInt(out, gameManager.getFarmingYear())) return false;
 
@@ -233,6 +253,28 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
         if (!ReadFloat(in, gravityMultiplier)) return false;
         if (!ReadFloat(in, jumpHeight)) return false;
     }
+    if (header.version >= 9) {
+        if (!ReadFloat(in, settings.lighting.sunDirectionX)) return false;
+        if (!ReadFloat(in, settings.lighting.sunDirectionY)) return false;
+        if (!ReadFloat(in, settings.lighting.sunDirectionZ)) return false;
+        if (!ReadFloat(in, settings.lighting.sunriseStartHour)) return false;
+        if (!ReadFloat(in, settings.lighting.dayStartHour)) return false;
+        if (!ReadFloat(in, settings.lighting.dayEndHour)) return false;
+        if (!ReadFloat(in, settings.lighting.nightStartHour)) return false;
+        if (!ReadFloat(in, settings.lighting.ambientNight)) return false;
+        if (!ReadFloat(in, settings.lighting.ambientDay)) return false;
+        if (!ReadFloat(in, settings.lighting.diffuseNight)) return false;
+        if (!ReadFloat(in, settings.lighting.diffuseDay)) return false;
+        if (!ReadFloat(in, settings.lighting.specularNight)) return false;
+        if (!ReadFloat(in, settings.lighting.specularDay)) return false;
+        if (!ReadFloat(in, settings.lighting.shininess)) return false;
+        if (!ReadFloat(in, settings.lighting.waterTintR)) return false;
+        if (!ReadFloat(in, settings.lighting.waterTintG)) return false;
+        if (!ReadFloat(in, settings.lighting.waterTintB)) return false;
+        if (!ReadFloat(in, settings.lighting.waterDiffuseMul)) return false;
+        if (!ReadFloat(in, settings.lighting.waterSpecularMul)) return false;
+        if (!ReadFloat(in, settings.lighting.waterMinAlpha)) return false;
+    }
 
     bool dayNightCycleEnabled = true;
     int farmingYear = 1;
@@ -313,6 +355,7 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
     settings.game.startHour = std::clamp(startHour, 0, 23);
 
     world.setSettings(ws);
+    world.setLightingSettings(settings.lighting);
     world.setExposureScale(exposureScale);
     world.setSeed(worldSeed);
     world.setChimneyEmitters(chimneys);

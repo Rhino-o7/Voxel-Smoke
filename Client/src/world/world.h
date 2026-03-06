@@ -114,6 +114,9 @@ public:
     void setSettings(const yc::Settings::WorldSettings& value) { settings = value; }
     const yc::Settings::WorldSettings& getSettings() const { return settings; }
 
+    void setLightingSettings(const yc::Settings::LightingSettings& value) { lightingSettings = value; }
+    const yc::Settings::LightingSettings& getLightingSettings() const { return lightingSettings; }
+
     void setExposureScale(float value) { exposureScale = value; }
     float getExposureScale() const { return exposureScale; }
 
@@ -148,6 +151,7 @@ private:
     const CropExposureMap* cropExposureMap = nullptr;
 
     yc::Settings::WorldSettings settings{};
+    yc::Settings::LightingSettings lightingSettings{};
     yc::Settings::SmokeSettings smokeSettings{};
     float exposureScale;
     size_t visibleChunkCount = 0;

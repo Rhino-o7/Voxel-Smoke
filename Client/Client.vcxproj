@@ -197,6 +197,7 @@
     <ClInclude Include="src\graphic\crosshair.h" />
     <ClInclude Include="src\graphic\display.h" />
     <ClInclude Include="src\graphic\flora_vertex.h" />
+    <ClInclude Include="src\graphic\lighting.h" />
     <ClInclude Include="src\graphic\skybox.h" />
     <ClInclude Include="src\graphic\smoke_volume_renderer.h" />
     <ClInclude Include="src\gui\game_scene.h" />

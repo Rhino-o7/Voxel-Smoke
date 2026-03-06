@@ -445,6 +445,7 @@ void GameManager::applySettings(const Settings& settings) {
 
     if (world) {
         world->setSettings(settings.world);
+        world->setLightingSettings(settings.lighting);
         world->setExposureScale(settings.exposure.exposureScale);
         world->setSmokeSettings(settings.smoke);
     }

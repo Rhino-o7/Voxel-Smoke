@@ -1145,6 +1145,9 @@
     <ClInclude Include="src\third_party\FrustumCulling\Frustum.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\graphic\lighting.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\smoke_volume.vert" />

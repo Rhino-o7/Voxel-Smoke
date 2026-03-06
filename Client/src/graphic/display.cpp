@@ -2,29 +2,12 @@
 #include "graphic/display.h"
 #include "application.h"
 #include "resource.h"
+#include "graphic/lighting.h"
 #include <iostream>
 #include <algorithm>
 #include <cmath>
 
 namespace yc::graphic {
-
-static float ComputeDaylightFromSimTime(double simTimeSec) {
-    constexpr double secondsInDay = 24.0 * 3600.0;
-    const double daySeconds = std::fmod(simTimeSec, secondsInDay);
-    const double wrappedDaySeconds = (daySeconds < 0.0) ? (daySeconds + secondsInDay) : daySeconds;
-    const float hour = static_cast<float>(wrappedDaySeconds / 3600.0);
-
-    if (hour < 6.0f || hour >= 20.0f) {
-        return 0.0f;
-    }
-    if (hour < 8.0f) {
-        return (hour - 6.0f) / 2.0f;
-    }
-    if (hour < 18.0f) {
-        return 1.0f;
-    }
-    return 1.0f - ((hour - 18.0f) / 2.0f);
-}
 
 float quadVertices[] = {
     // positions        // uv
@@ -141,7 +124,7 @@ void Display::drawFrame(yc::Player* player, yc::world::World* world) {
     glBindFramebuffer(GL_FRAMEBUFFER, opaqueFBO);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    const float daylight = std::clamp(ComputeDaylightFromSimTime(world->getSimTimeSec()), 0.0f, 1.0f);
+    const float daylight = std::clamp(yc::graphic::lighting::ComputeDaylight(world->getSimTimeSec()), 0.0f, 1.0f);
     skybox.render(player->getCamera(), daylight);
     if (player->isSelectingBlock()) {
         blockOutline.render(player->getCamera(), player->getSelectingBlock());

@@ -160,6 +160,25 @@ void PauseScene::renderSettingsPage() {
     changed |= ImGui::SliderFloat("Exposure Scale", &settings.exposure.exposureScale, 0.00001f, 0.1f, "%.5f", ImGuiSliderFlags_Logarithmic);
 
     ImGui::Separator();
+    ImGui::Text("Lighting");
+    changed |= ImGui::SliderFloat("Sun Dir X", &settings.lighting.sunDirectionX, -1.0f, 1.0f, "%.2f");
+    changed |= ImGui::SliderFloat("Sun Dir Y", &settings.lighting.sunDirectionY, -1.0f, 1.0f, "%.2f");
+    changed |= ImGui::SliderFloat("Sun Dir Z", &settings.lighting.sunDirectionZ, -1.0f, 1.0f, "%.2f");
+    changed |= ImGui::SliderFloat("Ambient Night", &settings.lighting.ambientNight, 0.0f, 1.5f, "%.3f");
+    changed |= ImGui::SliderFloat("Ambient Day", &settings.lighting.ambientDay, 0.0f, 2.0f, "%.3f");
+    changed |= ImGui::SliderFloat("Diffuse Night", &settings.lighting.diffuseNight, 0.0f, 1.5f, "%.3f");
+    changed |= ImGui::SliderFloat("Diffuse Day", &settings.lighting.diffuseDay, 0.0f, 2.0f, "%.3f");
+    changed |= ImGui::SliderFloat("Specular Night", &settings.lighting.specularNight, 0.0f, 1.5f, "%.3f");
+    changed |= ImGui::SliderFloat("Specular Day", &settings.lighting.specularDay, 0.0f, 2.0f, "%.3f");
+    changed |= ImGui::SliderFloat("Shininess", &settings.lighting.shininess, 1.0f, 128.0f, "%.1f");
+    changed |= ImGui::SliderFloat("Water Tint R", &settings.lighting.waterTintR, 0.0f, 2.0f, "%.3f");
+    changed |= ImGui::SliderFloat("Water Tint G", &settings.lighting.waterTintG, 0.0f, 2.0f, "%.3f");
+    changed |= ImGui::SliderFloat("Water Tint B", &settings.lighting.waterTintB, 0.0f, 2.0f, "%.3f");
+    changed |= ImGui::SliderFloat("Water Diffuse Mul", &settings.lighting.waterDiffuseMul, 0.0f, 3.0f, "%.3f");
+    changed |= ImGui::SliderFloat("Water Specular Mul", &settings.lighting.waterSpecularMul, 0.0f, 5.0f, "%.3f");
+    changed |= ImGui::SliderFloat("Water Min Alpha", &settings.lighting.waterMinAlpha, 0.0f, 1.0f, "%.3f");
+
+    ImGui::Separator();
     ImGui::Text("Game");
     changed |= ImGui::SliderScalar("Time Scale", ImGuiDataType_Double, &settings.game.timeScale, &timeScaleMin, &timeScaleMax, "%.2f");
     changed |= ImGui::SliderFloat("Temperature C", &settings.game.temperatureC, -40.0f, 60.0f, "%.1f");

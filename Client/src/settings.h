@@ -13,6 +13,32 @@ struct Settings {
         float exposureScale = 0.001f;
     } exposure;
 
+    struct LightingSettings {
+        float sunDirectionX = -0.4f;
+        float sunDirectionY = -1.0f;
+        float sunDirectionZ = -0.25f;
+
+        float sunriseStartHour = 6.0f;
+        float dayStartHour = 8.0f;
+        float dayEndHour = 18.0f;
+        float nightStartHour = 20.0f;
+
+        float ambientNight = 0.22f;
+        float ambientDay = 0.50f;
+        float diffuseNight = 0.08f;
+        float diffuseDay = 0.65f;
+        float specularNight = 0.02f;
+        float specularDay = 0.10f;
+        float shininess = 16.0f;
+
+        float waterTintR = 0.70f;
+        float waterTintG = 0.90f;
+        float waterTintB = 1.35f;
+        float waterDiffuseMul = 0.75f;
+        float waterSpecularMul = 2.4f;
+        float waterMinAlpha = 0.72f;
+    } lighting;
+
     struct GameSettings {
         double timeScale = 10.0;
         float temperatureC = 20.0f;
