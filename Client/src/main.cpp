@@ -17,8 +17,12 @@
 #include "persistence.h"
 #include "gl/framebuffer.h"
 
+
+
 int main()
 {
+   
+
     yc::Application app(1600, 800, "Voxel");
  
     app.getPlayer()->getCamera()->setOrientation(-89, 45);

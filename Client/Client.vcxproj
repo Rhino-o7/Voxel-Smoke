@@ -110,10 +110,10 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WEBSOCKETPP_CPP11_STL_;_WIN32_WINNT=0x0601;ASIO_STANDALONE;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)Client\src\third_party\GLAD\include;$(SolutionDir)Client\src\third_party\glfw\include;$(SolutionDir)Client\src;$(SolutionDir)Client\deps;$(SolutionDir)Client\src\third_party\lodepng;$(SolutionDir)Client\src\third_party\imgui;$(SolutionDir)Client\src\third_party\glm;$(SolutionDir)Client\src\third_party\FrustumCulling;$(SolutionDir)Client\src\third_party\FastNoiseLite;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Client\src\third_party\websocketpp-0.8.2;$(SolutionDir)Client\src\third_party\asio-1.12.1\include;$(SolutionDir)Client\src\third_party\GLAD\include;$(SolutionDir)Client\src\third_party\glfw\include;$(SolutionDir)Client\src;$(SolutionDir)Client\deps;$(SolutionDir)Client\src\third_party\lodepng;$(SolutionDir)Client\src\third_party\imgui;$(SolutionDir)Client\src\third_party\;$(SolutionDir)Client\src\third_party\glm;$(SolutionDir)Client\src\third_party\FrustumCulling;$(SolutionDir)Client\src\third_party\FastNoiseLite;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -128,10 +128,10 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WEBSOCKETPP_CPP11_STL_;_WIN32_WINNT=0x0601;ASIO_STANDALONE;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)Client\src\third_party\GLAD\include;$(SolutionDir)Client\src\third_party\glfw\include;$(SolutionDir)Client\src;$(SolutionDir)Client\deps;$(SolutionDir)Client\src\third_party\lodepng;$(SolutionDir)Client\src\third_party\imgui;$(SolutionDir)Client\src\third_party\glm;$(SolutionDir)Client\src\third_party\FrustumCulling;$(SolutionDir)Client\src\third_party\FastNoiseLite;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Client\src\third_party\websocketpp-0.8.2;$(SolutionDir)Client\src\third_party\asio-1.12.1\include;$(SolutionDir)Client\src\third_party\GLAD\include;$(SolutionDir)Client\src\third_party\glfw\include;$(SolutionDir)Client\src;$(SolutionDir)Client\deps;$(SolutionDir)Client\src\third_party\lodepng;$(SolutionDir)Client\src\third_party\imgui;$(SolutionDir)Client\src\third_party\;$(SolutionDir)Client\src\third_party\glm;$(SolutionDir)Client\src\third_party\FrustumCulling;$(SolutionDir)Client\src\third_party\FastNoiseLite;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -511,6 +511,100 @@
     <ClInclude Include="src\third_party\imgui\imstb_textedit.h" />
     <ClInclude Include="src\third_party\imgui\imstb_truetype.h" />
     <ClInclude Include="src\third_party\lodepng\lodepng.h" />
+    <ClInclude Include="src\third_party\stb_image.h" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\base64\base64.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\client.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\close.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\common\asio.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\common\asio_ssl.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\common\chrono.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\common\connection_hdl.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\common\cpp11.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\common\functional.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\common\md5.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\common\memory.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\common\network.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\common\platforms.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\common\random.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\common\regex.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\common\stdint.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\common\system_error.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\common\thread.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\common\time.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\common\type_traits.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\concurrency\basic.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\concurrency\none.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\config\asio.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\config\asio_client.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\config\asio_no_tls.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\config\asio_no_tls_client.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\config\boost_config.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\config\core.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\config\core_client.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\config\debug.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\config\debug_asio.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\config\debug_asio_no_tls.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\config\minimal_client.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\config\minimal_server.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\connection.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\connection_base.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\endpoint.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\endpoint_base.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\error.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\extensions\extension.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\extensions\permessage_deflate\disabled.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\extensions\permessage_deflate\enabled.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\frame.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\http\constants.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\http\impl\parser.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\http\impl\request.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\http\impl\response.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\http\parser.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\http\request.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\http\response.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\impl\connection_impl.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\impl\endpoint_impl.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\impl\utilities_impl.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\logger\basic.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\logger\levels.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\logger\stub.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\logger\syslog.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\message_buffer\alloc.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\message_buffer\message.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\message_buffer\pool.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\processors\base.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\processors\hybi00.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\processors\hybi07.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\processors\hybi08.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\processors\hybi13.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\processors\processor.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\random\none.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\random\random_device.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\roles\client_endpoint.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\roles\server_endpoint.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\server.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\sha1\sha1.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\transport\asio\base.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\transport\asio\connection.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\transport\asio\endpoint.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\transport\asio\security\base.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\transport\asio\security\none.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\transport\asio\security\tls.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\transport\base\connection.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\transport\base\endpoint.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\transport\debug\base.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\transport\debug\connection.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\transport\debug\endpoint.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\transport\iostream\base.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\transport\iostream\connection.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\transport\iostream\endpoint.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\transport\stub\base.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\transport\stub\connection.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\transport\stub\endpoint.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\uri.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\utf8_validator.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\utilities.hpp" />
+    <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\version.hpp" />
     <ClInclude Include="src\util\aabb.h" />
     <ClInclude Include="src\util\file.h" />
     <ClInclude Include="src\util\math.h" />
