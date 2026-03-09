@@ -60,8 +60,9 @@ void PauseScene::renderMainPage() {
         activePage = PausePage::Settings;
     }
 
-    if (drawCenteredButton("Skip To End Of Season")) {
+    if (drawCenteredButton("Skip To Harvest Day")) {
         application->getGameManager().skipToEndOfCurrentSeason();
+        application->resumeGame();
     }
 
     if (drawCenteredButton("Save Select")) {
@@ -151,8 +152,8 @@ void PauseScene::renderSettingsPage() {
     syncWindPathBuffer();
 
     bool changed = false;
-    const double timeScaleMin = 1.0f;
-    const double timeScaleMax = 1000000.0f;
+    const double timeScaleMin = 1.0;
+    const double timeScaleMax = 100.0;
     const double defaultChimneyExitMin = 0.1;
     const double defaultChimneyExitMax = 100.0;
 
@@ -180,7 +181,13 @@ void PauseScene::renderSettingsPage() {
 
     ImGui::Separator();
     ImGui::Text("Game");
-    changed |= ImGui::SliderScalar("Time Scale", ImGuiDataType_Double, &settings.game.timeScale, &timeScaleMin, &timeScaleMax, "%.2f");
+    double fineTimeScale = std::clamp(settings.game.timeScale, timeScaleMin, timeScaleMax);
+    if (ImGui::SliderScalar("Time Scale (Fine)", ImGuiDataType_Double, &fineTimeScale, &timeScaleMin, &timeScaleMax, "%.2f")) {
+        settings.game.timeScale = fineTimeScale;
+        changed = true;
+    }
+    changed |= ImGui::InputDouble("Time Scale (Exact)", &settings.game.timeScale, 1.0, 10.0, "%.2f");
+    settings.game.timeScale = std::max(0.0, settings.game.timeScale);
     changed |= ImGui::SliderFloat("Temperature C", &settings.game.temperatureC, -40.0f, 60.0f, "%.1f");
     changed |= ImGui::Checkbox("Start Simulation Running", &settings.game.startSimulationRunning);
     changed |= ImGui::Checkbox("Day/Night Cycle Enabled", &settings.game.dayNightCycleEnabled);
@@ -236,6 +243,7 @@ void PauseScene::renderSettingsPage() {
     changed |= ImGui::SliderInt("View Distance", &settings.world.viewDistance, 2, 64);
     changed |= ImGui::SliderInt("Max Unload/Frame", &settings.world.maxUnloadChunkPerFrame, 0, 64);
     changed |= ImGui::SliderInt("Max Load/Frame", &settings.world.maxChunksLoadPerFrame, 0, 64);
+    changed |= ImGui::Checkbox("Wireframe World", &settings.world.wireframeMode);
 
     ImGui::Separator();
     ImGui::Text("Camera");

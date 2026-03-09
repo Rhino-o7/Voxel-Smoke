@@ -84,6 +84,7 @@ BlockVertex::BlockVertex(uint32_t data) {
 }
 
 BlockVertex::BlockVertex(const glm::uvec3& coordinate, const glm::uvec2& uv) {
+    this->data = 0;
     setCoordinate(coordinate.x, coordinate.y, coordinate.z);
     setUV(uv.x, uv.y);
 }
@@ -136,6 +137,9 @@ void BlockVertex::setBlockType(yc::world::BlockType blockType, const glm::ivec3&
             break;
         case yc::world::BlockType::LEAF:
             setTexure(13, 0);
+            break;
+        case yc::world::BlockType::CHIMNEY:
+            setTexure(14, 0);
             break;
         case yc::world::BlockType::WOOD:
             if (faceDirection.y == 1 || faceDirection.y == -1) {

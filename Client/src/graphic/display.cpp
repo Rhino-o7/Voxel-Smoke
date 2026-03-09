@@ -208,6 +208,14 @@ void Display::toggleLineMode() {
     lineMode = !lineMode;
 }
 
+void Display::setLineMode(bool enabled) {
+    lineMode = enabled;
+}
+
+bool Display::isLineMode() const {
+    return lineMode;
+}
+
 Display::~Display() {
     
 }

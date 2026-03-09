@@ -11,7 +11,7 @@ namespace fs = std::filesystem;
 
 namespace {
     constexpr uint32_t SaveMagic = 0x56534359; // "YCSV"
-    constexpr uint32_t SaveVersion = 9;
+    constexpr uint32_t SaveVersion = 11;
 
     struct SaveHeader {
         uint32_t magic = SaveMagic;
@@ -42,6 +42,33 @@ namespace {
 
     bool WriteInt(std::ofstream& out, int value) { return WriteBytes(out, &value, sizeof(value)); }
     bool ReadInt(std::ifstream& in, int& value) { return ReadBytes(in, &value, sizeof(value)); }
+
+    bool WriteString(std::ofstream& out, const std::string& value) {
+        const auto length = static_cast<uint32_t>(value.size());
+        if (!WriteU32(out, length)) {
+            return false;
+        }
+
+        if (length == 0) {
+            return true;
+        }
+
+        return WriteBytes(out, value.data(), length);
+    }
+
+    bool ReadString(std::ifstream& in, std::string& value) {
+        uint32_t length = 0;
+        if (!ReadU32(in, length)) {
+            return false;
+        }
+
+        value.resize(length);
+        if (length == 0) {
+            return true;
+        }
+
+        return ReadBytes(in, value.data(), length);
+    }
 }
 
 std::vector<std::string> SaveSystem::listSaves() const {
@@ -133,6 +160,7 @@ bool SaveSystem::saveGame(const Settings& settings, const GameManager& gameManag
     if (!WriteInt(out, ws.viewDistance)) return false;
     if (!WriteInt(out, ws.maxUnloadChunkPerFrame)) return false;
     if (!WriteInt(out, ws.maxChunksLoadPerFrame)) return false;
+    if (!WriteU8(out, settings.world.wireframeMode ? 1 : 0)) return false;
     if (!WriteInt(out, world.getSeed())) return false;
 
     if (!WriteDouble(out, gameManager.getSimTimeSec())) return false;
@@ -147,6 +175,30 @@ bool SaveSystem::saveGame(const Settings& settings, const GameManager& gameManag
     if (!WriteFloat(out, settings.player.moveSpeed)) return false;
     if (!WriteFloat(out, settings.player.gravityMultiplier)) return false;
     if (!WriteFloat(out, settings.player.jumpHeight)) return false;
+    if (!WriteFloat(out, settings.camera.fovDeg)) return false;
+    if (!WriteInt(out, settings.chimney.height)) return false;
+    if (!WriteInt(out, settings.chimney.radius)) return false;
+    if (!WriteDouble(out, settings.chimney.exitVelocity)) return false;
+    if (!WriteInt(out, settings.smoke.stepCount)) return false;
+    if (!WriteFloat(out, settings.smoke.densityScale)) return false;
+    if (!WriteFloat(out, settings.smoke.colorR)) return false;
+    if (!WriteFloat(out, settings.smoke.colorG)) return false;
+    if (!WriteFloat(out, settings.smoke.colorB)) return false;
+    if (!WriteFloat(out, settings.smoke.voxelSize)) return false;
+    if (!WriteFloat(out, settings.smoke.voxelThreshold)) return false;
+    if (!WriteFloat(out, settings.smoke.dissipationHalfLifeSec)) return false;
+    if (!WriteFloat(out, settings.smoke.maxRenderDistance)) return false;
+    if (!WriteFloat(out, settings.smoke.windSmoothingSec)) return false;
+    if (!WriteFloat(out, settings.smoke.windTransitionSec)) return false;
+    if (!WriteFloat(out, settings.smoke.windSpeedVariation)) return false;
+    if (!WriteFloat(out, settings.smoke.windDirVariationDeg)) return false;
+    if (!WriteFloat(out, settings.smoke.windVariationScale)) return false;
+    if (!WriteFloat(out, settings.smoke.downwindFade)) return false;
+    if (!WriteFloat(out, settings.smoke.boxDownwind)) return false;
+    if (!WriteFloat(out, settings.smoke.boxCrosswind)) return false;
+    if (!WriteFloat(out, settings.smoke.boxVertical)) return false;
+    if (!WriteU8(out, settings.game.startSimulationRunning ? 1 : 0)) return false;
+    if (!WriteString(out, settings.game.windCsvPath)) return false;
     if (!WriteFloat(out, settings.lighting.sunDirectionX)) return false;
     if (!WriteFloat(out, settings.lighting.sunDirectionY)) return false;
     if (!WriteFloat(out, settings.lighting.sunDirectionZ)) return false;
@@ -223,6 +275,11 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
     if (!ReadInt(in, ws.viewDistance)) return false;
     if (!ReadInt(in, ws.maxUnloadChunkPerFrame)) return false;
     if (!ReadInt(in, ws.maxChunksLoadPerFrame)) return false;
+    if (header.version >= 10) {
+        uint8_t wireframeMode = 0;
+        if (!ReadU8(in, wireframeMode)) return false;
+        ws.wireframeMode = (wireframeMode != 0);
+    }
 
     int worldSeed = 0;
     if (header.version >= 6) {
@@ -243,6 +300,30 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
     float moveSpeed = settings.player.moveSpeed;
     float gravityMultiplier = settings.player.gravityMultiplier;
     float jumpHeight = settings.player.jumpHeight;
+    float fovDeg = settings.camera.fovDeg;
+    int chimneyHeight = settings.chimney.height;
+    int chimneyRadius = settings.chimney.radius;
+    double chimneyExitVelocity = settings.chimney.exitVelocity;
+    int smokeStepCount = settings.smoke.stepCount;
+    float smokeDensityScale = settings.smoke.densityScale;
+    float smokeColorR = settings.smoke.colorR;
+    float smokeColorG = settings.smoke.colorG;
+    float smokeColorB = settings.smoke.colorB;
+    float smokeVoxelSize = settings.smoke.voxelSize;
+    float smokeVoxelThreshold = settings.smoke.voxelThreshold;
+    float smokeDissipationHalfLifeSec = settings.smoke.dissipationHalfLifeSec;
+    float smokeMaxRenderDistance = settings.smoke.maxRenderDistance;
+    float smokeWindSmoothingSec = settings.smoke.windSmoothingSec;
+    float smokeWindTransitionSec = settings.smoke.windTransitionSec;
+    float smokeWindSpeedVariation = settings.smoke.windSpeedVariation;
+    float smokeWindDirVariationDeg = settings.smoke.windDirVariationDeg;
+    float smokeWindVariationScale = settings.smoke.windVariationScale;
+    float smokeDownwindFade = settings.smoke.downwindFade;
+    float smokeBoxDownwind = settings.smoke.boxDownwind;
+    float smokeBoxCrosswind = settings.smoke.boxCrosswind;
+    float smokeBoxVertical = settings.smoke.boxVertical;
+    bool startSimulationRunning = settings.game.startSimulationRunning;
+    std::string windCsvPath = settings.game.windCsvPath;
     if (!ReadFloat(in, temperatureC)) return false;
     if (!ReadFloat(in, exposureScale)) return false;
     if (header.version >= 7) {
@@ -252,6 +333,35 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
         if (!ReadFloat(in, moveSpeed)) return false;
         if (!ReadFloat(in, gravityMultiplier)) return false;
         if (!ReadFloat(in, jumpHeight)) return false;
+    }
+    if (header.version >= 11) {
+        if (!ReadFloat(in, fovDeg)) return false;
+        if (!ReadInt(in, chimneyHeight)) return false;
+        if (!ReadInt(in, chimneyRadius)) return false;
+        if (!ReadDouble(in, chimneyExitVelocity)) return false;
+        if (!ReadInt(in, smokeStepCount)) return false;
+        if (!ReadFloat(in, smokeDensityScale)) return false;
+        if (!ReadFloat(in, smokeColorR)) return false;
+        if (!ReadFloat(in, smokeColorG)) return false;
+        if (!ReadFloat(in, smokeColorB)) return false;
+        if (!ReadFloat(in, smokeVoxelSize)) return false;
+        if (!ReadFloat(in, smokeVoxelThreshold)) return false;
+        if (!ReadFloat(in, smokeDissipationHalfLifeSec)) return false;
+        if (!ReadFloat(in, smokeMaxRenderDistance)) return false;
+        if (!ReadFloat(in, smokeWindSmoothingSec)) return false;
+        if (!ReadFloat(in, smokeWindTransitionSec)) return false;
+        if (!ReadFloat(in, smokeWindSpeedVariation)) return false;
+        if (!ReadFloat(in, smokeWindDirVariationDeg)) return false;
+        if (!ReadFloat(in, smokeWindVariationScale)) return false;
+        if (!ReadFloat(in, smokeDownwindFade)) return false;
+        if (!ReadFloat(in, smokeBoxDownwind)) return false;
+        if (!ReadFloat(in, smokeBoxCrosswind)) return false;
+        if (!ReadFloat(in, smokeBoxVertical)) return false;
+
+        uint8_t startSimulation = 0;
+        if (!ReadU8(in, startSimulation)) return false;
+        startSimulationRunning = (startSimulation != 0);
+        if (!ReadString(in, windCsvPath)) return false;
     }
     if (header.version >= 9) {
         if (!ReadFloat(in, settings.lighting.sunDirectionX)) return false;
@@ -350,6 +460,30 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
     settings.player.moveSpeed = std::clamp(moveSpeed, 1.0f, 200.0f);
     settings.player.gravityMultiplier = std::clamp(gravityMultiplier, 0.1f, 10.0f);
     settings.player.jumpHeight = std::clamp(jumpHeight, 0.5f, 4.0f);
+    settings.camera.fovDeg = std::clamp(fovDeg, 30.0f, 120.0f);
+    settings.chimney.height = std::clamp(chimneyHeight, 1, 64);
+    settings.chimney.radius = std::clamp(chimneyRadius, 1, 16);
+    settings.chimney.exitVelocity = std::clamp(chimneyExitVelocity, 0.1, 100.0);
+    settings.smoke.stepCount = std::clamp(smokeStepCount, 8, 256);
+    settings.smoke.densityScale = std::clamp(smokeDensityScale, 0.0f, 3.0f);
+    settings.smoke.colorR = std::clamp(smokeColorR, 0.0f, 1.0f);
+    settings.smoke.colorG = std::clamp(smokeColorG, 0.0f, 1.0f);
+    settings.smoke.colorB = std::clamp(smokeColorB, 0.0f, 1.0f);
+    settings.smoke.voxelSize = std::clamp(smokeVoxelSize, 0.1f, 10.0f);
+    settings.smoke.voxelThreshold = std::clamp(smokeVoxelThreshold, 0.000001f, 0.01f);
+    settings.smoke.dissipationHalfLifeSec = std::clamp(smokeDissipationHalfLifeSec, 1.0f, 300.0f);
+    settings.smoke.maxRenderDistance = std::clamp(smokeMaxRenderDistance, 10.0f, 2000.0f);
+    settings.smoke.windSmoothingSec = std::clamp(smokeWindSmoothingSec, 0.1f, 30.0f);
+    settings.smoke.windTransitionSec = std::clamp(smokeWindTransitionSec, 0.1f, 30.0f);
+    settings.smoke.windSpeedVariation = std::clamp(smokeWindSpeedVariation, 0.0f, 2.0f);
+    settings.smoke.windDirVariationDeg = std::clamp(smokeWindDirVariationDeg, 0.0f, 45.0f);
+    settings.smoke.windVariationScale = std::clamp(smokeWindVariationScale, 0.001f, 10.0f);
+    settings.smoke.downwindFade = std::clamp(smokeDownwindFade, 1.0f, 400.0f);
+    settings.smoke.boxDownwind = std::clamp(smokeBoxDownwind, 10.0f, 1000.0f);
+    settings.smoke.boxCrosswind = std::clamp(smokeBoxCrosswind, 5.0f, 500.0f);
+    settings.smoke.boxVertical = std::clamp(smokeBoxVertical, 5.0f, 500.0f);
+    settings.game.startSimulationRunning = startSimulationRunning;
+    settings.game.windCsvPath = windCsvPath.empty() ? settings.game.windCsvPath : windCsvPath;
     settings.game.dayNightCycleEnabled = dayNightCycleEnabled;
     settings.game.currentSeason = std::clamp(currentSeason, 0, 3);
     settings.game.startHour = std::clamp(startHour, 0, 23);

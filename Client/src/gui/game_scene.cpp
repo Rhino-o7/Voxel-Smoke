@@ -55,7 +55,16 @@ void GameScene::render() {
 
     for (int slot = 0; slot < inventory.size(); ++slot) {
         ImVec2 size = { 40.0f * uiScale, 40.0f * uiScale };
-        GLuint id = Resource::BlockIcons[inventory[slot]].getId();
+        const auto blockType = inventory[slot];
+        GLuint id = Resource::BlockIcons[blockType].getId();
+        ImVec2 uv0(0.0f, 0.0f);
+        ImVec2 uv1(1.0f, 1.0f);
+
+        if (blockType == yc::world::BlockType::CHIMNEY) {
+            id = Resource::GameTexure.getId();
+            uv0 = ImVec2(14.0f / 16.0f, 0.0f / 16.0f);
+            uv1 = ImVec2(15.0f / 16.0f, 1.0f / 16.0f);
+        }
 
         if (slot == player->getCurrentSlot()) {
             ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.72f, 0.72f, 0.72f, 1));
@@ -72,7 +81,7 @@ void GameScene::render() {
             ImGui::SetCursorPos(ImVec2(cursor.x - (4.0f * uiScale), cursor.y - (4.0f * uiScale)));
         }
 
-        ImGui::Image((void*)(intptr_t)id, size);
+        ImGui::Image((void*)(intptr_t)id, size, uv0, uv1);
         ImGui::EndChildFrame();
         ImGui::SameLine();
 

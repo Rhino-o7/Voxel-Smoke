@@ -25,12 +25,24 @@ flat in uvec2 tex_coord;
 in vec2 vert_pos;
 flat in float vExposure;
 flat in uint vFaceIndex;
+in vec3 vLocalPos;
 in vec3 vWorldPos;
 
 layout (location = 0) out vec4 accum;
 layout (location = 1) out float reveal;
 
 const float sprite_size = 1.0f / 16;
+
+vec2 GetFaceUv(uint faceIndex, vec3 localPos) {
+    vec3 f = fract(localPos);
+
+    if (faceIndex == 0u) return vec2(f.x, f.y);
+    if (faceIndex == 1u) return vec2(1.0 - f.x, f.y);
+    if (faceIndex == 2u) return vec2(1.0 - f.z, f.y);
+    if (faceIndex == 3u) return vec2(f.z, f.y);
+    if (faceIndex == 4u) return vec2(f.x, 1.0 - f.z);
+    return vec2(1.0 - f.x, 1.0 - f.z);
+}
 
 bool IsWaterTile(uvec2 atlasCoord) {
     return atlasCoord.y == 0u && atlasCoord.x <= 2u;
@@ -46,9 +58,10 @@ float weight(float z, float a) {
 }
 
 void main() {  
+    vec2 faceUv = GetFaceUv(vFaceIndex, vLocalPos);
     vec2 coord = vec2(sprite_size * tex_coord.x, sprite_size * tex_coord.y);
-    coord.x += (vert_pos.x) * sprite_size;
-    coord.y += (vert_pos.y) * sprite_size;
+    coord.x += faceUv.x * sprite_size;
+    coord.y += faceUv.y * sprite_size;
 
     vec4 color = texture(game_texture, coord);
 

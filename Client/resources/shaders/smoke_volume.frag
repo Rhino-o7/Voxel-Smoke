@@ -26,9 +26,8 @@ uniform float uWindVariationScale;
 uniform float uWindSpeedVariation;
 uniform float uWindDirVariationDeg;
 
-uniform int uSourceCount;
-uniform vec4 uSourcePosH[32];
-uniform vec4 uSourceParams[32];
+uniform vec4 uSourcePosH;
+uniform vec4 uSourceParams;
 
 uniform int uStepCount;
 uniform float uDensityScale;
@@ -52,78 +51,71 @@ float weight(float z, float a) {
 
 float sampleGaussian(vec3 p) {
     float windSpeed = max(uWindSpeed, 1e-6);
+    vec3 srcPos = uSourcePosH.xyz;
+    float srcH = uSourcePosH.w;
+    float exitVelocity = uSourceParams.x;
+    float radius = uSourceParams.y;
 
-    float total = 0.0;
+    vec3 rel = p - srcPos;
 
-    for (int i = 0; i < uSourceCount; ++i) {
-        vec3 srcPos = uSourcePosH[i].xyz;
-        float srcH = uSourcePosH[i].w;
-        float exitVelocity = uSourceParams[i].x;
-        float radius = uSourceParams[i].y;
+    vec2 w = normalize(uWindDirXZ);
+    vec2 r = vec2(rel.x, rel.z);
 
-        vec3 rel = p - srcPos;
+    float downwind = dot(r, w);
+    if (downwind <= 0.0) return 0.0;
+    float fadeWidth = max(uDownwindFade, 0.01);
+    float downwindFade = 1.0 - smoothstep(uMaxDownwind, uMaxDownwind + fadeWidth, downwind);
+    if (downwindFade <= 0.0) return 0.0;
 
-        vec2 w = normalize(uWindDirXZ);
-        vec2 r = vec2(rel.x, rel.z);
+    float age = downwind / windSpeed;
+    float tSinceChange = uSimTimeSec - uWindChangeTimeSec;
+    float transition = max(uWindTransitionSec, 0.01);
+    float blend = smoothstep(-transition, transition, age - tSinceChange);
+    vec2 wPrev = normalize(uPrevWindDirXZ);
+    vec2 wBlendRaw = mix(uWindDirXZ, wPrev, blend);
+    vec2 wBlend = length(wBlendRaw) > 1e-6 ? normalize(wBlendRaw) : normalize(uWindDirXZ);
+    float speedBlend = mix(uWindSpeed, uPrevWindSpeed, blend);
 
-        float downwind = dot(r, w);
-        if (downwind <= 0.0) continue;
-        float fadeWidth = max(uDownwindFade, 0.01);
-        float downwindFade = 1.0 - smoothstep(uMaxDownwind, uMaxDownwind + fadeWidth, downwind);
-        if (downwindFade <= 0.0) continue;
+    w = wBlend;
+    windSpeed = max(speedBlend, 1e-6);
 
-        float age = downwind / windSpeed;
-        float tSinceChange = uSimTimeSec - uWindChangeTimeSec;
-        float transition = max(uWindTransitionSec, 0.01);
-        float blend = smoothstep(-transition, transition, age - tSinceChange);
-        vec2 wPrev = normalize(uPrevWindDirXZ);
-        vec2 wBlendRaw = mix(uWindDirXZ, wPrev, blend);
-        vec2 wBlend = length(wBlendRaw) > 1e-6 ? normalize(wBlendRaw) : normalize(uWindDirXZ);
-        float speedBlend = mix(uWindSpeed, uPrevWindSpeed, blend);
+    downwind = dot(r, w);
+    if (downwind <= 0.0) return 0.0;
+    downwindFade = 1.0 - smoothstep(uMaxDownwind, uMaxDownwind + fadeWidth, downwind);
+    if (downwindFade <= 0.0) return 0.0;
 
-        w = wBlend;
-        windSpeed = max(speedBlend, 1e-6);
+    age = downwind / windSpeed;
+    float halfLife = max(uDissipationHalfLifeSec, 0.01);
+    float decay = pow(0.5, max(age, 0.0) / halfLife);
 
-        downwind = dot(r, w);
-        if (downwind <= 0.0) continue;
-        downwindFade = 1.0 - smoothstep(uMaxDownwind, uMaxDownwind + fadeWidth, downwind);
-        if (downwindFade <= 0.0) continue;
+    vec2 perp = vec2(-w.y, w.x);
+    float crosswind = dot(r, perp);
 
-        age = downwind / windSpeed;
-        float halfLife = max(uDissipationHalfLifeSec, 0.01);
-        float decay = pow(0.5, max(age, 0.0) / halfLife);
+    float sourceRadius = max(radius, 0.01);
+    float x = max(downwind, 0.1);
+    float vRatio = exitVelocity / max(1.0, uWindSpeed);
+    float widen = 1.0 + 0.12 * clamp(vRatio, 0.0, 8.0);
 
-        vec2 perp = vec2(-w.y, w.x);
-        float crosswind = dot(r, perp);
+    float sigmaY = max(0.6 * sqrt(x) * widen, sourceRadius * 0.20);
+    float sigmaZ = max(0.3 * sqrt(x) * widen, sourceRadius * 0.12);
 
-        float sourceRadius = max(radius, 0.01);
-        float x = max(downwind, 0.1);
-        float vRatio = exitVelocity / max(1.0, uWindSpeed);
-        float widen = 1.0 + 0.12 * clamp(vRatio, 0.0, 8.0);
+    float area = PI * radius * radius;
+    float Q = area * exitVelocity;
 
-        float sigmaY = max(0.6 * sqrt(x) * widen, sourceRadius * 0.20);
-        float sigmaZ = max(0.3 * sqrt(x) * widen, sourceRadius * 0.12);
+    float crossAbs = abs(crosswind);
+    float crossCore = max(crossAbs - sourceRadius * 0.55, 0.0);
+    float gy = exp(-(crossCore * crossCore) / (2.0 * sigmaY * sigmaY));
+    float z = rel.y;
+    float gz = exp(-((z - srcH) * (z - srcH)) / (2.0 * sigmaZ * sigmaZ));
 
-        float area = PI * radius * radius;
-        float Q = area * exitVelocity;
+    float dilution = (windSpeed * sigmaY * sigmaZ);
+    float phase = uSimTimeSec * max(uWindVariationScale, 0.01);
+    float dirVar = uWindDirVariationDeg * 0.01745329252;
+    float turb = 0.5 + 0.5 * sin(dot(p.xz, vec2(0.08, 0.11)) + p.y * 0.03 + phase + dirVar);
+    float jitter = mix(1.0 - uWindSpeedVariation, 1.0 + uWindSpeedVariation, turb);
+    float C = (Q / (2.0 * PI * dilution)) * gy * gz * jitter;
 
-        float crossAbs = abs(crosswind);
-        float crossCore = max(crossAbs - sourceRadius * 0.55, 0.0);
-        float gy = exp(-(crossCore * crossCore) / (2.0 * sigmaY * sigmaY));
-        float z = rel.y;
-        float gz = exp(-((z - srcH) * (z - srcH)) / (2.0 * sigmaZ * sigmaZ));
-
-        float dilution = (windSpeed * sigmaY * sigmaZ);
-        float phase = uSimTimeSec * max(uWindVariationScale, 0.01);
-        float dirVar = uWindDirVariationDeg * 0.01745329252;
-        float turb = 0.5 + 0.5 * sin(dot(p.xz, vec2(0.08, 0.11)) + p.y * 0.03 + phase + dirVar);
-        float jitter = mix(1.0 - uWindSpeedVariation, 1.0 + uWindSpeedVariation, turb);
-        float C = (Q / (2.0 * PI * dilution)) * gy * gz * jitter;
-
-        total += C * decay * downwindFade;
-    }
-
-    return total;
+    return C * decay * downwindFade;
 }
 
 bool intersectAABB(vec3 ro, vec3 rd, vec3 bmin, vec3 bmax, out float tNear, out float tFar) {

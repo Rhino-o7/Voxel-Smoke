@@ -12,6 +12,7 @@ static BlockData sandBlock { BlockType::SAND };
 static BlockData snowBlock { BlockType::SNOW };
 static BlockData woodBlock { BlockType::WOOD };
 static BlockData leafBlock { BlockType::LEAF };
+static BlockData chimneyBlock { BlockType::CHIMNEY };
 
 WorldGenerator::TerrainConfig WorldGenerator::MakeMountainsConfig() {
     TerrainConfig c{};
@@ -233,7 +234,7 @@ void WorldGenerator::generateChimneyAt(World* world, const glm::ivec3& coord, in
         for (int x = -radius; x <= radius; ++x) {
             for (int z = -radius; z <= radius; ++z) {
                 if (std::sqrt(x * x + z * z) <= radius) {
-                    world->setBlockDataIfLoadedAt({ coord.x + x, coord.y + y, coord.z + z }, stoneBlock);
+                    world->setBlockDataIfLoadedAt({ coord.x + x, coord.y + y, coord.z + z }, chimneyBlock);
                 }
             }
         }

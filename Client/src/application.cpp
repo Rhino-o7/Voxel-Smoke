@@ -189,6 +189,7 @@ namespace yc {
         if (!app->paused && !app->gameManager.isGameOver()) {
             if (glfwGetKey(app->window, GLFW_KEY_F3) == GLFW_PRESS) {
                 app->display.toggleLineMode();
+                app->settings.world.wireframeMode = app->display.isLineMode();
             }
 
             if (glfwGetKey(app->window, GLFW_KEY_F1) == GLFW_PRESS) {
@@ -344,6 +345,7 @@ namespace yc {
 
     void Application::applyCurrentSettings() {
         gameManager.applySettings(settings);
+        display.setLineMode(settings.world.wireframeMode);
         if (player) {
             player->getCamera()->setFovDeg(settings.camera.fovDeg);
             player->setMoveSpeed(settings.player.moveSpeed);

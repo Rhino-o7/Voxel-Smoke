@@ -258,17 +258,16 @@ void SmokeVolumeRenderer::render(yc::Camera* camera,
         const glm::mat4 model = glm::translate(glm::mat4(1.0f), boxMin) * glm::scale(glm::mat4(1.0f), size);
         yc::Resource::SmokeVolumeShader.setMat4("model", model);
 
-        const std::vector<glm::vec4> sourcePosH = {
-            glm::vec4(static_cast<float>(source.worldPos.x), static_cast<float>(source.worldPos.y), static_cast<float>(source.worldPos.z), static_cast<float>(source.height))
-        };
-
-        const std::vector<glm::vec4> sourceParams = {
-            glm::vec4(static_cast<float>(source.exitVelocity), static_cast<float>(source.radius), 0.0f, 0.0f)
-        };
-
-        yc::Resource::SmokeVolumeShader.setInt("uSourceCount", 1);
-        yc::Resource::SmokeVolumeShader.setVec4Array("uSourcePosH", sourcePosH);
-        yc::Resource::SmokeVolumeShader.setVec4Array("uSourceParams", sourceParams);
+        yc::Resource::SmokeVolumeShader.setVec4("uSourcePosH", glm::vec4(
+            static_cast<float>(source.worldPos.x),
+            static_cast<float>(source.worldPos.y),
+            static_cast<float>(source.worldPos.z),
+            static_cast<float>(source.height)));
+        yc::Resource::SmokeVolumeShader.setVec4("uSourceParams", glm::vec4(
+            static_cast<float>(source.exitVelocity),
+            static_cast<float>(source.radius),
+            0.0f,
+            0.0f));
 
         glDrawArrays(GL_TRIANGLES, 0, 36);
     }

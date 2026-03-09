@@ -52,7 +52,7 @@ bool BlockData::isTransparent() const {
     return blockType == BlockType::AIR
         || blockType == BlockType::GLASS
         || blockType == BlockType::WATER
-	    || blockType == BlockType::LEAF
+	    //|| blockType == BlockType::LEAF
 	    || blockType == BlockType::CROP;
 }
 

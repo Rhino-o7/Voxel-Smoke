@@ -10,6 +10,7 @@ flat out uvec2 tex_coord;
 out vec2 vert_pos;
 flat out float vExposure;
 flat out uint vFaceIndex;
+out vec3 vLocalPos;
 out vec3 vWorldPos;
 
 void main() {
@@ -26,6 +27,7 @@ void main() {
     vert_pos = vec2(uv_x, uv_y);
     vExposure = exposure;
     vFaceIndex = face_index;
+    vLocalPos = vec3(x, y, z);
 
     vec4 worldPos = model * vec4(x, y, z, 1.0f);
     vWorldPos = worldPos.xyz;

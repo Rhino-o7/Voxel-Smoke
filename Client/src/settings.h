@@ -53,6 +53,7 @@ struct Settings {
         int viewDistance = 24;
         int maxUnloadChunkPerFrame = 4;
         int maxChunksLoadPerFrame = 2;
+        bool wireframeMode = false;
     } world;
 
     struct CameraSettings {

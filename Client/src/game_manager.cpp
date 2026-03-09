@@ -67,14 +67,20 @@ void GameManager::pauseTime() {
 }
 
 void GameManager::skipToEndOfCurrentSeason() {
+    if (gameOver) {
+        return;
+    }
+
     const int secondsPerDay = HoursPerDay * 3600;
     const double currentSimTime = getSimTimeSec();
     const int absoluteDay = static_cast<int>(std::floor(currentSimTime / static_cast<double>(secondsPerDay)));
-    const int dayInYearZeroBased = positiveMod(absoluteDay, DaysPerYear);
-    const int dayInSeasonZeroBased = dayInYearZeroBased % DaysPerSeason;
-    const int daysRemainingInSeason = (DaysPerSeason - 1) - dayInSeasonZeroBased;
-    const int targetAbsoluteDay = absoluteDay + daysRemainingInSeason;
-    const double targetSimTime = static_cast<double>(targetAbsoluteDay * secondsPerDay + (secondsPerDay - 1));
+    const int yearIndex = std::max(0, absoluteDay / DaysPerYear);
+    int targetAbsoluteDay = yearIndex * DaysPerYear + getSeasonStartDay(Season::Autumn);
+    if (absoluteDay >= targetAbsoluteDay) {
+        targetAbsoluteDay += DaysPerYear;
+    }
+
+    const double targetSimTime = static_cast<double>(targetAbsoluteDay * secondsPerDay);
 
     if (currentSimTime >= targetSimTime) {
         return;
@@ -82,7 +88,7 @@ void GameManager::skipToEndOfCurrentSeason() {
 
     registerLoadedCropBlocks();
 
-    constexpr double integrationStepSec = 60.0;
+    constexpr double integrationStepSec = 900.0;
     double simTime = currentSimTime;
 
     while (simTime < targetSimTime) {
@@ -101,12 +107,15 @@ void GameManager::skipToEndOfCurrentSeason() {
 
         updateCalendarState();
         finishHarvestIfNeeded();
-        updateCropExposure(step);
+        updateCropExposure(step, false);
 
         if (gameOver) {
             break;
         }
     }
+
+    refreshCropExposureBuffers();
+    finishHarvestIfNeeded();
 }
 
 void GameManager::resumeTime() {
@@ -380,10 +389,31 @@ void GameManager::finishHarvestIfNeeded() {
 
     harvestResult = result;
     gameOver = true;
+    resumeOnUnpause = false;
     stopSimulation();
 }
 
-void GameManager::updateCropExposure(double simDtSec) {
+void GameManager::refreshCropExposureBuffers() {
+    if (!world || cropExposureByBlock.empty()) {
+        return;
+    }
+
+    std::unordered_set<glm::ivec2, yc::world::World::HashChunkCoord> dirtyChunks;
+    for (const auto& [blockPos, exposure] : cropExposureByBlock) {
+        (void)exposure;
+        dirtyChunks.insert(yc::world::World::GetChunkCoordOf(blockPos));
+    }
+
+    for (const auto& chunkCoord : dirtyChunks) {
+        if (auto chunk = world->getChunkIfLoadedAt(chunkCoord)) {
+            chunk->updateCropExposureBuffers([this](const glm::ivec3& worldCoord) {
+                return static_cast<float>(getCropExposureAtBlock(worldCoord));
+            });
+        }
+    }
+}
+
+void GameManager::updateCropExposure(double simDtSec, bool updateChunkBuffers) {
     if (!world) return;
 
     if (simDtSec <= 0.0 || cropExposureByBlock.empty()) return;
@@ -426,6 +456,10 @@ void GameManager::updateCropExposure(double simDtSec) {
 
     for (const auto& pos : toRemove) {
         cropExposureByBlock.erase(pos);
+    }
+
+    if (!updateChunkBuffers) {
+        return;
     }
 
     for (const auto& chunkCoord : dirtyChunks) {

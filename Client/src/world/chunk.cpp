@@ -27,9 +27,6 @@ void Chunk::buildMeshCpu(std::shared_ptr<Chunk> northChunk,
                          std::shared_ptr<Chunk> southChunk,
                          std::shared_ptr<Chunk> eastChunk,
                          std::shared_ptr<Chunk> westChunk) {
-    // This is a copy of the CPU-side generation from buildMesh but without any GL calls
-    // and writing into the stagingData vectors. Keep it simple and reuse much of existing logic.
-
     MeshStagingData localStaging;
 
     size_t chunkOpaqueVerticesSize = 0;
@@ -57,23 +54,140 @@ void Chunk::buildMeshCpu(std::shared_ptr<Chunk> northChunk,
 
     const BlockData defaultAir{ BlockType::AIR };
 
-    // Acquire lock for reading block data during CPU build.
     std::lock_guard<std::mutex> readLock(this->blocksMutex);
-    for (int32_t x=0; x<Chunk::Length; ++x)
-    for (int32_t y=0; y<Chunk::Height; ++y)
-    for (int32_t z=0; z<Chunk::Width; ++z) {
-        BlockData block = this->blocks[x][y][z];
+
+    auto getNeighborBlock = [&](int32_t x, int32_t y, int32_t z) -> const BlockData* {
+        if (y < 0 || y >= Chunk::Height) {
+            return nullptr;
+        }
+
+        if (x >= 0 && x < Chunk::Length && z >= 0 && z < Chunk::Width) {
+            return &this->blocks[x][y][z];
+        }
+
+        if (x < 0) {
+            return (westChunk != nullptr) ? &westChunk->blocks[Chunk::Length - 1][y][z] : &defaultAir;
+        }
+
+        if (x >= Chunk::Length) {
+            return (eastChunk != nullptr) ? &eastChunk->blocks[0][y][z] : &defaultAir;
+        }
+
+        if (z < 0) {
+            return (northChunk != nullptr) ? &northChunk->blocks[x][y][Chunk::Width - 1] : &defaultAir;
+        }
+
+        if (z >= Chunk::Width) {
+            return (southChunk != nullptr) ? &southChunk->blocks[x][y][0] : &defaultAir;
+        }
+
+        return &defaultAir;
+    };
+
+    auto shouldRenderFace = [&](BlockType blockType, const BlockData* neighborBlock) {
+        if (neighborBlock == nullptr) {
+            return true;
+        }
+
+        const BlockData& blockToCheck = *neighborBlock;
+
+        if (blockType == blockToCheck.getType() && blockToCheck.isTransparent() && blockType != BlockType::LEAF) {
+            return false;
+        }
+
+        if (blockToCheck.isOpaque() && blockType != BlockType::GLASS) {
+            return false;
+        }
+
+        return true;
+    };
+
+    auto appendOpaqueVertex = [&](int32_t x, int32_t y, int32_t z, uint32_t uvX, uint32_t uvY, BlockType blockType, const glm::ivec3& direction) {
+        yc::graphic::BlockVertex vertex({ static_cast<uint32_t>(x), static_cast<uint32_t>(y), static_cast<uint32_t>(z) }, { uvX, uvY });
+        vertex.setBlockType(blockType, direction);
+        localStaging.opaqueVertices.push_back(vertex.getData());
+        localStaging.opaqueExposure.push_back(0.0f);
+        ++chunkOpaqueVerticesSize;
+    };
+
+    auto appendOpaqueQuad = [&](int32_t faceIndex,
+                                BlockType blockType,
+                                int32_t x0, int32_t x1,
+                                int32_t y0, int32_t y1,
+                                int32_t z0, int32_t z1) {
+        const uint32_t opaqueId = static_cast<uint32_t>(chunkOpaqueVerticesSize);
+        const glm::ivec3 direction = directionsToCheck[faceIndex];
+
+        switch (faceIndex) {
+            case 0: // front
+                appendOpaqueVertex(x1, y0, z0, 1, 0, blockType, direction);
+                appendOpaqueVertex(x1, y1, z0, 1, 1, blockType, direction);
+                appendOpaqueVertex(x0, y1, z0, 0, 1, blockType, direction);
+                appendOpaqueVertex(x0, y0, z0, 0, 0, blockType, direction);
+                break;
+
+            case 1: // back
+                appendOpaqueVertex(x1, y0, z0, 0, 0, blockType, direction);
+                appendOpaqueVertex(x1, y1, z0, 0, 1, blockType, direction);
+                appendOpaqueVertex(x0, y1, z0, 1, 1, blockType, direction);
+                appendOpaqueVertex(x0, y0, z0, 1, 0, blockType, direction);
+                break;
+
+            case 2: // right
+                appendOpaqueVertex(x0, y0, z0, 1, 0, blockType, direction);
+                appendOpaqueVertex(x0, y1, z0, 1, 1, blockType, direction);
+                appendOpaqueVertex(x0, y1, z1, 0, 1, blockType, direction);
+                appendOpaqueVertex(x0, y0, z1, 0, 0, blockType, direction);
+                break;
+
+            case 3: // left
+                appendOpaqueVertex(x0, y0, z0, 0, 0, blockType, direction);
+                appendOpaqueVertex(x0, y1, z0, 0, 1, blockType, direction);
+                appendOpaqueVertex(x0, y1, z1, 1, 1, blockType, direction);
+                appendOpaqueVertex(x0, y0, z1, 1, 0, blockType, direction);
+                break;
+
+            case 4: // top
+                appendOpaqueVertex(x1, y0, z0, 1, 1, blockType, direction);
+                appendOpaqueVertex(x1, y0, z1, 1, 0, blockType, direction);
+                appendOpaqueVertex(x0, y0, z1, 0, 0, blockType, direction);
+                appendOpaqueVertex(x0, y0, z0, 0, 1, blockType, direction);
+                break;
+
+            case 5: // bottom
+            default:
+                appendOpaqueVertex(x1, y0, z1, 0, 0, blockType, direction);
+                appendOpaqueVertex(x1, y0, z0, 0, 1, blockType, direction);
+                appendOpaqueVertex(x0, y0, z0, 1, 1, blockType, direction);
+                appendOpaqueVertex(x0, y0, z1, 1, 0, blockType, direction);
+                break;
+        }
+
+        localStaging.opaqueIndices.push_back(opaqueId + 0);
+        localStaging.opaqueIndices.push_back(opaqueId + 1);
+        localStaging.opaqueIndices.push_back(opaqueId + 2);
+        localStaging.opaqueIndices.push_back(opaqueId + 0);
+        localStaging.opaqueIndices.push_back(opaqueId + 2);
+        localStaging.opaqueIndices.push_back(opaqueId + 3);
+        chunkOpaqueIndicesSize += 6;
+    };
+
+    // Transparent blocks and flora keep per-block faces to preserve blending/exposure behavior.
+    for (int32_t x = 0; x < Chunk::Length; ++x)
+    for (int32_t y = 0; y < Chunk::Height; ++y)
+    for (int32_t z = 0; z < Chunk::Width; ++z) {
+        const BlockData block = this->blocks[x][y][z];
         const BlockType blockType = block.getType();
 
         if (block.isFlora()) {
-            const uint32_t id = static_cast<uint32_t>(localStaging.floraVertexCoord.size()/3);
-            for (int i=0;i<8;++i) {
+            const uint32_t id = static_cast<uint32_t>(localStaging.floraVertexCoord.size() / 3);
+            for (int i = 0; i < 8; ++i) {
                 const float vx = x + yc::graphic::FloraVertices[i][0];
                 const float vy = y + yc::graphic::FloraVertices[i][1];
                 const float vz = z + yc::graphic::FloraVertices[i][2];
                 const float uvX = yc::graphic::FloraTexcoords[i][0];
                 const float uvY = yc::graphic::FloraTexcoords[i][1];
-                const uint32_t texCoord = yc::graphic::GetFloraTexureCoord(blockType, (i<4) ? 1 : 2);
+                const uint32_t texCoord = yc::graphic::GetFloraTexureCoord(blockType, (i < 4) ? 1 : 2);
 
                 localStaging.floraVertexCoord.push_back(vx);
                 localStaging.floraVertexCoord.push_back(vy);
@@ -97,49 +211,25 @@ void Chunk::buildMeshCpu(std::shared_ptr<Chunk> northChunk,
             continue;
         }
 
-        if (blockType == BlockType::AIR) continue;
+        if (blockType == BlockType::AIR || block.isOpaque()) {
+            continue;
+        }
 
         float exposure = 0.0f;
-        if (blockType == BlockType::CROP) {
+        if (blockType == BlockType::CROP && world != nullptr) {
             const glm::ivec3 worldBlock = getWorldCoordOfBlock({ x, y, z });
             exposure = static_cast<float>(world->getCropExposureAtBlock(worldBlock));
         }
 
         const bool trackCrop = (blockType == BlockType::CROP);
-        const uint32_t cropOpaqueStart = static_cast<uint32_t>(chunkOpaqueVerticesSize);
         const uint32_t cropTransparentStart = static_cast<uint32_t>(chunkTransparentVerticesSize);
 
-        const bool blockIsOpaque = block.isOpaque();
-
-        for (const auto& direction: directionsToCheck) {
-            const glm::ivec3 coordToCheck { x+direction[0], y+direction[1], z+direction[2] };
-
-            // Default: outside the chunk is treated as air unless proven otherwise.
-            const BlockData* blockToCheckPtr = &defaultAir;
-
-            if (coordToCheck.y >= 0 && coordToCheck.y < Chunk::Height) {
-                if (coordToCheck.x >= Chunk::Length) {
-                    if (eastChunk != nullptr) blockToCheckPtr = &eastChunk->blocks[0][y][z];
-                } else if (coordToCheck.x < 0) {
-                    if (westChunk != nullptr) blockToCheckPtr = &westChunk->blocks[Chunk::Length-1][y][z];
-                } else if (coordToCheck.z >= Chunk::Width) {
-                    if (southChunk != nullptr) blockToCheckPtr = &southChunk->blocks[x][y][0];
-                } else if (coordToCheck.z < 0) {
-                    if (northChunk != nullptr) blockToCheckPtr = &northChunk->blocks[x][y][Chunk::Width-1];
-                } else {
-                    blockToCheckPtr = &this->blocks[coordToCheck.x][coordToCheck.y][coordToCheck.z];
-                }
-
-                const BlockData& blockToCheck = *blockToCheckPtr;
-
-                if (blockType == blockToCheck.getType() && blockToCheck.isTransparent() && blockType != BlockType::LEAF) {
-                    continue;
-                }
-
-                if (blockToCheck.isOpaque() && blockType != BlockType::GLASS) continue;
+        for (const auto& direction : directionsToCheck) {
+            const BlockData* neighborBlock = getNeighborBlock(x + direction.x, y + direction.y, z + direction.z);
+            if (!shouldRenderFace(blockType, neighborBlock)) {
+                continue;
             }
 
-            const uint32_t opaqueId = static_cast<uint32_t>(chunkOpaqueVerticesSize);
             const uint32_t transparentId = static_cast<uint32_t>(chunkTransparentVerticesSize);
             const auto& baseVertices = yc::graphic::BlockVertex::GetVerticesFromDirection(direction);
 
@@ -147,44 +237,136 @@ void Chunk::buildMeshCpu(std::shared_ptr<Chunk> northChunk,
                 yc::graphic::BlockVertex vertex = baseVertices[vi];
                 vertex.moveCoordinate(x, y, z);
                 vertex.setBlockType(blockType, direction);
-
-                if (blockIsOpaque) {
-                    localStaging.opaqueVertices.push_back(vertex.getData());
-                    localStaging.opaqueExposure.push_back(exposure);
-                    ++chunkOpaqueVerticesSize;
-                } else {
-                    localStaging.transparentVertices.push_back(vertex.getData());
-                    localStaging.transparentExposure.push_back(exposure);
-                    ++chunkTransparentVerticesSize;
-                }
+                localStaging.transparentVertices.push_back(vertex.getData());
+                localStaging.transparentExposure.push_back(exposure);
+                ++chunkTransparentVerticesSize;
             }
 
-            if (blockIsOpaque) {
-                localStaging.opaqueIndices.push_back(opaqueId + 0);
-                localStaging.opaqueIndices.push_back(opaqueId + 1);
-                localStaging.opaqueIndices.push_back(opaqueId + 2);
-                localStaging.opaqueIndices.push_back(opaqueId + 0);
-                localStaging.opaqueIndices.push_back(opaqueId + 2);
-                localStaging.opaqueIndices.push_back(opaqueId + 3);
-                chunkOpaqueIndicesSize += 6;
-            } else {
-                localStaging.transparentIndices.push_back(transparentId + 0);
-                localStaging.transparentIndices.push_back(transparentId + 1);
-                localStaging.transparentIndices.push_back(transparentId + 2);
-                localStaging.transparentIndices.push_back(transparentId + 0);
-                localStaging.transparentIndices.push_back(transparentId + 2);
-                localStaging.transparentIndices.push_back(transparentId + 3);
-                chunkTransparentIndicesSize += 6;
-            }
+            localStaging.transparentIndices.push_back(transparentId + 0);
+            localStaging.transparentIndices.push_back(transparentId + 1);
+            localStaging.transparentIndices.push_back(transparentId + 2);
+            localStaging.transparentIndices.push_back(transparentId + 0);
+            localStaging.transparentIndices.push_back(transparentId + 2);
+            localStaging.transparentIndices.push_back(transparentId + 3);
+            chunkTransparentIndicesSize += 6;
         }
 
         if (trackCrop) {
-            if (blockIsOpaque) {
-                const uint32_t count = static_cast<uint32_t>(chunkOpaqueVerticesSize) - cropOpaqueStart;
-                localStaging.cropOpaqueMeshSpans[PackLocalCoord({ x, y, z })] = { { x, y, z }, cropOpaqueStart, count };
-            } else {
-                const uint32_t count = static_cast<uint32_t>(chunkTransparentVerticesSize) - cropTransparentStart;
-                localStaging.cropTransparentMeshSpans[PackLocalCoord({ x, y, z })] = { { x, y, z }, cropTransparentStart, count };
+            const uint32_t count = static_cast<uint32_t>(chunkTransparentVerticesSize) - cropTransparentStart;
+            localStaging.cropTransparentMeshSpans[PackLocalCoord({ x, y, z })] = { { x, y, z }, cropTransparentStart, count };
+        }
+    }
+
+    // Greedy meshing for opaque blocks.
+    struct OpaqueMaskCell {
+        bool valid = false;
+        BlockType type = BlockType::AIR;
+        BlockFaceDirection faceDirection = BlockFaceDirection::NONE;
+    };
+
+    std::array<OpaqueMaskCell, Chunk::Height * Chunk::Width> mask{};
+
+    for (int32_t faceIndex = 0; faceIndex < 6; ++faceIndex) {
+        const glm::ivec3 direction = directionsToCheck[faceIndex];
+        const int32_t d = (direction.x != 0) ? 0 : ((direction.y != 0) ? 1 : 2);
+        const int32_t u = (d == 0) ? 1 : 0;
+        const int32_t v = (d == 2) ? 1 : 2;
+
+        const int32_t dimD = (d == 0) ? Chunk::Length : ((d == 1) ? Chunk::Height : Chunk::Width);
+        const int32_t dimU = (u == 0) ? Chunk::Length : ((u == 1) ? Chunk::Height : Chunk::Width);
+        const int32_t dimV = (v == 0) ? Chunk::Length : ((v == 1) ? Chunk::Height : Chunk::Width);
+
+        for (int32_t p = 0; p < dimD; ++p) {
+            for (int32_t j = 0; j < dimV; ++j) {
+                for (int32_t i = 0; i < dimU; ++i) {
+                    OpaqueMaskCell& cell = mask[j * dimU + i];
+                    cell.valid = false;
+
+                    std::array<int32_t, 3> blockCoord{};
+                    blockCoord[d] = p;
+                    blockCoord[u] = i;
+                    blockCoord[v] = j;
+
+                    const BlockData block = this->blocks[blockCoord[0]][blockCoord[1]][blockCoord[2]];
+                    if (!block.isOpaque()) {
+                        continue;
+                    }
+
+                    const BlockType blockType = block.getType();
+                    const BlockData* neighborBlock = getNeighborBlock(
+                        blockCoord[0] + direction.x,
+                        blockCoord[1] + direction.y,
+                        blockCoord[2] + direction.z);
+
+                    if (!shouldRenderFace(blockType, neighborBlock)) {
+                        continue;
+                    }
+
+                    cell.valid = true;
+                    cell.type = blockType;
+                    cell.faceDirection = block.getFaceDirection();
+                }
+            }
+
+            for (int32_t j = 0; j < dimV; ++j) {
+                for (int32_t i = 0; i < dimU;) {
+                    OpaqueMaskCell& base = mask[j * dimU + i];
+                    if (!base.valid) {
+                        ++i;
+                        continue;
+                    }
+
+                    int32_t width = 1;
+                    while (i + width < dimU) {
+                        OpaqueMaskCell& next = mask[j * dimU + (i + width)];
+                        if (!next.valid || next.type != base.type || next.faceDirection != base.faceDirection) {
+                            break;
+                        }
+                        ++width;
+                    }
+
+                    int32_t height = 1;
+                    bool canGrow = true;
+                    while (j + height < dimV && canGrow) {
+                        for (int32_t k = 0; k < width; ++k) {
+                            OpaqueMaskCell& next = mask[(j + height) * dimU + (i + k)];
+                            if (!next.valid || next.type != base.type || next.faceDirection != base.faceDirection) {
+                                canGrow = false;
+                                break;
+                            }
+                        }
+
+                        if (canGrow) {
+                            ++height;
+                        }
+                    }
+
+                    std::array<int32_t, 3> minCoord{};
+                    std::array<int32_t, 3> maxCoord{};
+
+                    const int32_t plane = (direction[d] > 0) ? (p + 1) : p;
+                    minCoord[d] = plane;
+                    maxCoord[d] = plane;
+                    minCoord[u] = i;
+                    maxCoord[u] = i + width;
+                    minCoord[v] = j;
+                    maxCoord[v] = j + height;
+
+                    appendOpaqueQuad(
+                        faceIndex,
+                        base.type,
+                        minCoord[0], maxCoord[0],
+                        minCoord[1], maxCoord[1],
+                        minCoord[2], maxCoord[2]);
+
+                    for (int32_t y = 0; y < height; ++y) {
+                        for (int32_t x = 0; x < width; ++x) {
+                            mask[(j + y) * dimU + (i + x)].valid = false;
+                        }
+                    }
+
+                    i += width;
+                }
             }
         }
     }
@@ -372,224 +554,14 @@ void Chunk::buildMeshIfNeeded() {
     }
 }
 
-// TODO: optimize this later
 void Chunk::buildMesh() {
-    size_t chunkOpaqueVerticesSize = 0;
-    size_t chunkOpaqueIndicesSize = 0;
-    size_t chunkTransparentVerticesSize = 0;
-    size_t chunkTransparentIndicesSize = 0;
+    auto northChunk = this->world ? this->world->getChunkIfLoadedAt({ this->coord.x, this->coord.y - 1 }) : nullptr;
+    auto southChunk = this->world ? this->world->getChunkIfLoadedAt({ this->coord.x, this->coord.y + 1 }) : nullptr;
+    auto eastChunk  = this->world ? this->world->getChunkIfLoadedAt({ this->coord.x + 1, this->coord.y }) : nullptr;
+    auto westChunk  = this->world ? this->world->getChunkIfLoadedAt({ this->coord.x - 1, this->coord.y }) : nullptr;
 
-    std::vector<float> floraVertexCoord, floraVertexUv;
-    std::vector<uint32_t> floraVertexTexCoord;
-    std::vector<uint32_t> floraIndices;
-
-    // Reserve some space to avoid repeated reallocations for common cases.
-    floraVertexCoord.reserve(4096);
-    floraVertexUv.reserve(4096);
-    floraVertexTexCoord.reserve(2048);
-    floraIndices.reserve(4096);
-
-    static uint32_t chunkOpaqueVertices[300000];
-    static uint32_t chunkOpaqueIndices[500000];
-    static uint32_t chunkTransparentVertices[300000];
-    static uint32_t chunkTransparentIndices[500000];
-    static float chunkOpaqueExposure[300000];
-    static float chunkTransparentExposure[300000];
-
-    //6cropMeshSpans.clear();
-    cropOpaqueMeshSpans.clear();
-    cropTransparentMeshSpans.clear();
-
-    auto northChunk = this->world->getChunkIfLoadedAt({ this->coord.x, this->coord.y - 1 });
-    auto southChunk = this->world->getChunkIfLoadedAt({ this->coord.x, this->coord.y + 1 });
-    auto eastChunk  = this->world->getChunkIfLoadedAt({ this->coord.x + 1, this->coord.y });
-    auto westChunk  = this->world->getChunkIfLoadedAt({ this->coord.x - 1, this->coord.y });
-
-    const BlockData defaultAir{ BlockType::AIR };
-
-    for (int32_t x=0; x<Chunk::Length; ++x)
-    for (int32_t y=0; y<Chunk::Height; ++y)
-    for (int32_t z=0; z<Chunk::Width; ++z) {
-        BlockData& block = this->blocks[x][y][z];
-        const BlockType blockType = block.getType();
-
-        if (block.isFlora()) {
-            const uint32_t id = static_cast<uint32_t>(floraVertexCoord.size()/3);
-            for (int i=0;i<8;++i) {
-                const float vx = x + yc::graphic::FloraVertices[i][0];
-                const float vy = y + yc::graphic::FloraVertices[i][1];
-                const float vz = z + yc::graphic::FloraVertices[i][2];
-                const float uvX = yc::graphic::FloraTexcoords[i][0];
-                const float uvY = yc::graphic::FloraTexcoords[i][1];
-                const uint32_t texCoord = yc::graphic::GetFloraTexureCoord(blockType, (i<4) ? 1 : 2);
-
-                floraVertexCoord.push_back(vx);
-                floraVertexCoord.push_back(vy);
-                floraVertexCoord.push_back(vz);
-                floraVertexUv.push_back(uvX);
-                floraVertexUv.push_back(uvY);
-                floraVertexTexCoord.push_back(texCoord);
-            }
-            floraIndices.push_back(id + 0);
-            floraIndices.push_back(id + 1);
-            floraIndices.push_back(id + 2);
-            floraIndices.push_back(id + 0);
-            floraIndices.push_back(id + 2);
-            floraIndices.push_back(id + 3);
-            floraIndices.push_back(id + 4);
-            floraIndices.push_back(id + 5);
-            floraIndices.push_back(id + 6);
-            floraIndices.push_back(id + 4);
-            floraIndices.push_back(id + 6);
-            floraIndices.push_back(id + 7);
-            continue;
-        }
-
-        if (blockType == BlockType::AIR) continue;
-
-        float exposure = 0.0f;
-        if (blockType == BlockType::CROP) {
-            const glm::ivec3 worldBlock = getWorldCoordOfBlock({ x, y, z });
-            exposure = static_cast<float>(world->getCropExposureAtBlock(worldBlock));
-        }
-
-        const bool trackCrop = (blockType == BlockType::CROP);
-        const uint32_t cropOpaqueStart = static_cast<uint32_t>(chunkOpaqueVerticesSize);
-        const uint32_t cropTransparentStart = static_cast<uint32_t>(chunkTransparentVerticesSize);
-
-        const bool blockIsOpaque = block.isOpaque();
-
-        for (const auto& direction: directionsToCheck) {
-            const glm::ivec3 coordToCheck { x+direction[0], y+direction[1], z+direction[2] };
-
-            // Default: outside the chunk is treated as air unless proven otherwise.
-            const BlockData* blockToCheckPtr = &defaultAir;
-
-            if (coordToCheck.y >= 0 && coordToCheck.y < Chunk::Height) {
-                if (coordToCheck.x >= Chunk::Length) {
-                    if (eastChunk != nullptr) blockToCheckPtr = &eastChunk->blocks[0][y][z];
-                } else if (coordToCheck.x < 0) {
-                    if (westChunk != nullptr) blockToCheckPtr = &westChunk->blocks[Chunk::Length-1][y][z];
-                } else if (coordToCheck.z >= Chunk::Width) {
-                    if (southChunk != nullptr) blockToCheckPtr = &southChunk->blocks[x][y][0];
-                } else if (coordToCheck.z < 0) {
-                    if (northChunk != nullptr) blockToCheckPtr = &northChunk->blocks[x][y][Chunk::Width-1];
-                } else {
-                    blockToCheckPtr = &this->blocks[coordToCheck.x][coordToCheck.y][coordToCheck.z];
-                }
-
-                const BlockData& blockToCheck = *blockToCheckPtr;
-
-                if (blockType == blockToCheck.getType() && blockToCheck.isTransparent() && blockType != BlockType::LEAF) {
-                    continue;
-                }
-
-                if (blockToCheck.isOpaque() && blockType != BlockType::GLASS) continue;
-            }
-
-            const uint32_t opaqueId = static_cast<uint32_t>(chunkOpaqueVerticesSize);
-            const uint32_t transparentId = static_cast<uint32_t>(chunkTransparentVerticesSize);
-            const auto& baseVertices = yc::graphic::BlockVertex::GetVerticesFromDirection(direction);
-
-            // Copy and modify each vertex individually to avoid copying the entire array each time.
-            for (size_t vi = 0; vi < 4; ++vi) {
-                yc::graphic::BlockVertex vertex = baseVertices[vi];
-                vertex.moveCoordinate(x, y, z);
-                vertex.setBlockType(blockType, direction);
-
-                if (blockIsOpaque) {
-                    chunkOpaqueVertices[chunkOpaqueVerticesSize] = vertex.getData();
-                    chunkOpaqueExposure[chunkOpaqueVerticesSize] = exposure;
-                    ++chunkOpaqueVerticesSize;
-                } else {
-                    chunkTransparentVertices[chunkTransparentVerticesSize] = vertex.getData();
-                    chunkTransparentExposure[chunkTransparentVerticesSize] = exposure;
-                    ++chunkTransparentVerticesSize;
-                }
-            }
-
-            if (blockIsOpaque) {
-                chunkOpaqueIndices[chunkOpaqueIndicesSize++] = opaqueId + 0;
-                chunkOpaqueIndices[chunkOpaqueIndicesSize++] = opaqueId + 1;
-                chunkOpaqueIndices[chunkOpaqueIndicesSize++] = opaqueId + 2;
-                chunkOpaqueIndices[chunkOpaqueIndicesSize++] = opaqueId + 0;
-                chunkOpaqueIndices[chunkOpaqueIndicesSize++] = opaqueId + 2;
-                chunkOpaqueIndices[chunkOpaqueIndicesSize++] = opaqueId + 3;
-            } else {
-                chunkTransparentIndices[chunkTransparentIndicesSize++] = transparentId + 0;
-                chunkTransparentIndices[chunkTransparentIndicesSize++] = transparentId + 1;
-                chunkTransparentIndices[chunkTransparentIndicesSize++] = transparentId + 2;
-                chunkTransparentIndices[chunkTransparentIndicesSize++] = transparentId + 0;
-                chunkTransparentIndices[chunkTransparentIndicesSize++] = transparentId + 2;
-                chunkTransparentIndices[chunkTransparentIndicesSize++] = transparentId + 3;
-            }
-        }
-
-        if (trackCrop) {
-            if (blockIsOpaque) {
-                const uint32_t count = static_cast<uint32_t>(chunkOpaqueVerticesSize) - cropOpaqueStart;
-                cropOpaqueMeshSpans[PackLocalCoord({ x, y, z })] = { { x, y, z }, cropOpaqueStart, count };
-            } else {
-                const uint32_t count = static_cast<uint32_t>(chunkTransparentVerticesSize) - cropTransparentStart;
-                cropTransparentMeshSpans[PackLocalCoord({ x, y, z })] = { { x, y, z }, cropTransparentStart, count };
-            }
-        }
-    }
-
-    // Opaque
-    if (chunkOpaqueIndicesSize == 0) {
-        opaqueMesh.reset();
-    } else if (opaqueMesh != nullptr) {
-        opaqueMesh->bind();
-        opaqueMesh->updateIndices(&chunkOpaqueIndices[0], chunkOpaqueIndicesSize);
-        opaqueMesh->updateStaticBuffer(0, &chunkOpaqueVertices[0], chunkOpaqueVerticesSize);
-        opaqueMesh->updateStaticBuffer(1, &chunkOpaqueExposure[0], chunkOpaqueVerticesSize);
-    } else {
-        opaqueMesh = std::make_shared<yc::gl::Mesh>();
-        opaqueMesh->init();
-        opaqueMesh->bind();
-        opaqueMesh->addIndices(&chunkOpaqueIndices[0], chunkOpaqueIndicesSize);
-        opaqueMesh->addStaticBuffer(1, &chunkOpaqueVertices[0], chunkOpaqueVerticesSize);
-        opaqueMesh->addStaticBuffer(1, &chunkOpaqueExposure[0], chunkOpaqueVerticesSize);
-    }
-
-    // Transparent
-    if (chunkTransparentIndicesSize == 0) {
-        transparentMesh.reset();
-    } else if (transparentMesh != nullptr) {
-        transparentMesh->bind();
-        transparentMesh->updateIndices(&chunkTransparentIndices[0], chunkTransparentIndicesSize);
-        transparentMesh->updateStaticBuffer(0, &chunkTransparentVertices[0], chunkTransparentVerticesSize);
-        transparentMesh->updateStaticBuffer(1, &chunkTransparentExposure[0], chunkTransparentVerticesSize);
-    } else {
-        transparentMesh = std::make_shared<yc::gl::Mesh>();
-        transparentMesh->init();
-        transparentMesh->bind();
-        transparentMesh->addIndices(&chunkTransparentIndices[0], chunkTransparentIndicesSize);
-        transparentMesh->addStaticBuffer(1, &chunkTransparentVertices[0], chunkTransparentVerticesSize);
-        transparentMesh->addStaticBuffer(1, &chunkTransparentExposure[0], chunkTransparentVerticesSize);
-    }
-
-    // Flora
-    if (floraIndices.empty()) {
-        floraMesh.reset();
-    } else if (floraMesh != nullptr) {
-        floraMesh->bind();
-        floraMesh->updateIndices(floraIndices);
-        floraMesh->updateStaticBuffer(0, floraVertexCoord);
-        floraMesh->updateStaticBuffer(1, floraVertexUv);
-        floraMesh->updateStaticBuffer(2, floraVertexTexCoord);
-    } else {
-        floraMesh = std::make_shared<yc::gl::Mesh>();
-        floraMesh->init();
-        floraMesh->bind();
-        floraMesh->addIndices(floraIndices);
-        floraMesh->addStaticBuffer(3, floraVertexCoord);
-        floraMesh->addStaticBuffer(2, floraVertexUv);
-        floraMesh->addStaticBuffer(1, floraVertexTexCoord);
-    }
-
-    this->needToBuildMesh = false;
+    buildMeshCpu(northChunk, southChunk, eastChunk, westChunk);
+    uploadMeshFromStaging();
 }
 
 glm::ivec2 Chunk::getCoord() const {

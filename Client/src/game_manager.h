@@ -136,7 +136,8 @@ private:
     static int positiveMod(int value, int mod);
     void updateCalendarState();
     void finishHarvestIfNeeded();
-    void updateCropExposure(double simDtSec);
+    void updateCropExposure(double simDtSec, bool updateChunkBuffers = true);
+    void refreshCropExposureBuffers();
 
     yc::world::World* world = nullptr;
     Player* player = nullptr;

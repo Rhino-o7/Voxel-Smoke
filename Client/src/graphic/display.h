@@ -27,6 +27,8 @@ public:
     void nextFrame();
 
     void toggleLineMode();
+    void setLineMode(bool enabled);
+    bool isLineMode() const;
 
 private:
     glm::vec3 clearColor = { 0.2f, 0.3f, 0.3f };
