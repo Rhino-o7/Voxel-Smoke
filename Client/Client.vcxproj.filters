@@ -135,6 +135,12 @@
     <ClCompile Include="src\third_party\GLAD\src\glad.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\network_client.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\network_messages.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\camera.h">
@@ -1428,6 +1434,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\third_party\websocketpp-0.8.2\websocketpp\version.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\network_client.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\network_messages.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -2,6 +2,7 @@
 
 #include <unordered_map>
 #include <queue>
+#include <unordered_set>
 #include <vector>
 #include <glm/glm.hpp>
 #include <cstdint>
@@ -128,8 +129,13 @@ public:
     void enqueueJob(const std::function<void()>& job);
 
 private:
+    void integrateReadyChunks(int maxPerFrame);
+
     std::unordered_map<glm::ivec2, std::shared_ptr<Chunk>, HashChunkCoord> chunks;
     std::queue<std::shared_ptr<Chunk>> shouldBeUnloadedChunks;
+    std::queue<std::pair<glm::ivec2, std::shared_ptr<Chunk>>> readyChunks;
+    std::unordered_set<glm::ivec2, HashChunkCoord> loadingChunks;
+    std::mutex readyChunksMutex;
 
     // Worker thread pool
     std::vector<std::thread> workerThreads;

@@ -7,6 +7,7 @@
 #include "world/chunk.h"
 #include "world/block.h"
 #include "util/math.h"
+#include "network_client.h"
 
 namespace yc {
 
@@ -59,8 +60,7 @@ namespace yc {
 
         Resource::Load();
 
-        saveSystem.openOrCreate("default");
-        persistence = new Persistence(saveSystem.getPaths().regionsRoot.string());
+        persistence = new Persistence("");
 
         gui.init(window);
 
@@ -340,6 +340,7 @@ namespace yc {
 
     void Application::terminate() {
         saveCurrentGame();
+        NetworkClient::instance().disconnect();
         glfwTerminate();
     }
 
@@ -372,7 +373,7 @@ namespace yc {
         world->clearChunks();
         world->clearChimneyEmitters();
         world->setSeed(seed);
-        persistence->reset(saveSystem.getPaths().regionsRoot.string());
+        persistence->reset(name);
 
         gameManager.resetRound();
         applyCurrentSettings();
@@ -390,7 +391,7 @@ namespace yc {
 
         world->clearChunks();
         world->clearChimneyEmitters();
-        persistence->reset(saveSystem.getPaths().regionsRoot.string());
+        persistence->reset(name);
 
         if (saveSystem.hasSaveData()) {
             const bool loaded = saveSystem.loadGame(settings, gameManager, *world);
@@ -414,6 +415,23 @@ namespace yc {
 
     std::vector<std::string> Application::listSaves() const {
         return saveSystem.listSaves();
+    }
+
+    bool Application::connectToServer(const std::string& serverAddress, std::string& error) {
+        const bool ok = NetworkClient::instance().connect(serverAddress, &error);
+        if (ok) {
+            showServerConnectInSaveSelect = false;
+        }
+        return ok;
+    }
+
+    void Application::disconnectFromServer() {
+        NetworkClient::instance().disconnect();
+        showServerConnectInSaveSelect = true;
+    }
+
+    bool Application::isServerConnected() const {
+        return NetworkClient::instance().isConnected();
     }
 
     void Application::saveCurrentGame() {

@@ -161,6 +161,8 @@
     <ClCompile Include="src\gui\pause_scene.cpp" />
     <ClCompile Include="src\gui\save_select_scene.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\network_client.cpp" />
+    <ClCompile Include="src\network_messages.cpp" />
     <ClCompile Include="src\persistence.cpp" />
     <ClCompile Include="src\player.cpp" />
     <ClCompile Include="src\resource.cpp" />
@@ -204,6 +206,8 @@
     <ClInclude Include="src\gui\gui.h" />
     <ClInclude Include="src\gui\pause_scene.h" />
     <ClInclude Include="src\gui\save_select_scene.h" />
+    <ClInclude Include="src\network_client.h" />
+    <ClInclude Include="src\network_messages.h" />
     <ClInclude Include="src\persistence.h" />
     <ClInclude Include="src\player.h" />
     <ClInclude Include="src\resource.h" />

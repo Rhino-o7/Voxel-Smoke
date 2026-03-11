@@ -23,9 +23,11 @@ private:
     std::vector<std::string> saveNames;
     int selectedIndex = -1;
     char newSaveName[64]{};
+    char serverAddress[256] = "ws://127.0.0.1:9002";
     int32_t manualSeed = 0;
     int32_t randomSeed = 0;
     bool useRandomSeed = true;
+    std::string connectError;
 };
 
 }

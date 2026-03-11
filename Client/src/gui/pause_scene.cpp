@@ -69,6 +69,16 @@ void PauseScene::renderMainPage() {
         application->setSaveSelectionActive(true);
     }
 
+    if (drawCenteredButton("Save World Now")) {
+        application->saveCurrentGame();
+    }
+
+    if (application->isServerConnected() && drawCenteredButton("Disconnect To Title")) {
+        application->saveCurrentGame();
+        application->disconnectFromServer();
+        application->setSaveSelectionActive(true);
+    }
+
     if (drawCenteredButton("Quit")) {
         application->stop();
     }

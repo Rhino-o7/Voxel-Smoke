@@ -269,6 +269,8 @@ void World::enqueueJob(const std::function<void()>& job) {
 }
 
 void World::update(yc::Camera* camera) {
+    integrateReadyChunks(std::max(1, settings.maxChunksLoadPerFrame));
+
     const glm::vec3 cameraPos = camera->getPosition();
     const BlockPos cameraBlockCoord = getWorldtoBlockCoord(WorldPos{
         static_cast<double>(cameraPos.x),
@@ -299,7 +301,6 @@ void World::update(yc::Camera* camera) {
         shouldBeUnloadedChunks.pop();
         unloadChunk(chunk->getCoord());
     }
-    persistence->syncRegionFiles();
 
     std::atomic_int chunkCount = 0;
 
@@ -342,27 +343,66 @@ void World::update(yc::Camera* camera) {
 }
 
 void World::generateOrLoadChunkAt(const glm::ivec2& chunkCoord) {
-    auto chunk = persistence->getChunk(chunkCoord, this);
-
-    if (chunk == nullptr) {
-        chunk = this->generator.generateChunk(this, chunkCoord);
+    {
+        std::lock_guard<std::mutex> lock(readyChunksMutex);
+        if (loadingChunks.find(chunkCoord) != loadingChunks.end()) {
+            return;
+        }
+        loadingChunks.insert(chunkCoord);
     }
 
-    // Ensure it will render even if loaded-from-disk
-    chunk->prepareToBuildMesh();
+    enqueueJob([this, chunkCoord]() {
+        auto chunk = persistence->getChunk(chunkCoord, this);
+        if (chunk == nullptr) {
+            chunk = this->generator.generateChunk(this, chunkCoord);
+        }
 
-    const std::array<glm::ivec2, 4> neighborChunks = {{
-        { +1, 0 }, { -1, 0 }, { 0, +1 }, { 0, -1 },
-    }};
+        if (!chunk) {
+            std::lock_guard<std::mutex> lock(readyChunksMutex);
+            loadingChunks.erase(chunkCoord);
+            return;
+        }
 
-    for (auto& neighbor: neighborChunks) {
-        auto neighborChunkCoord = chunkCoord + neighbor;
-        if (isChunkLoaded(neighborChunkCoord)) {
-            this->chunks[neighborChunkCoord]->prepareToBuildMesh();
+        chunk->prepareToBuildMesh();
+
+        std::lock_guard<std::mutex> lock(readyChunksMutex);
+        readyChunks.push({ chunkCoord, chunk });
+    });
+}
+
+void World::integrateReadyChunks(int maxPerFrame) {
+    for (int i = 0; i < maxPerFrame; ++i) {
+        std::pair<glm::ivec2, std::shared_ptr<Chunk>> ready;
+
+        {
+            std::lock_guard<std::mutex> lock(readyChunksMutex);
+            if (readyChunks.empty()) {
+                return;
+            }
+            ready = readyChunks.front();
+            readyChunks.pop();
+            loadingChunks.erase(ready.first);
+        }
+
+        const auto chunkCoord = ready.first;
+        const auto& chunk = ready.second;
+        if (!chunk) {
+            continue;
+        }
+
+        this->chunks[chunkCoord] = chunk;
+
+        const std::array<glm::ivec2, 4> neighborChunks = {{
+            { +1, 0 }, { -1, 0 }, { 0, +1 }, { 0, -1 },
+        }};
+
+        for (const auto& neighbor : neighborChunks) {
+            auto neighborChunkCoord = chunkCoord + neighbor;
+            if (isChunkLoaded(neighborChunkCoord)) {
+                this->chunks[neighborChunkCoord]->prepareToBuildMesh();
+            }
         }
     }
-
-    this->chunks[chunkCoord] = chunk;
 }
 
 void World::unloadChunk(const glm::ivec2& chunkCoord) {
@@ -761,6 +801,13 @@ void World::setSeed(int32_t seed) {
 
 void World::clearChunks() {
     chunks.clear();
+    {
+        std::lock_guard<std::mutex> lock(readyChunksMutex);
+        while (!readyChunks.empty()) {
+            readyChunks.pop();
+        }
+        loadingChunks.clear();
+    }
     while (!shouldBeUnloadedChunks.empty()) {
         shouldBeUnloadedChunks.pop();
     }
