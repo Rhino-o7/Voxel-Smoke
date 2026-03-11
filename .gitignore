@@ -2,6 +2,7 @@
 Client/saves/
 
 build/obj/
+build/bin/Debug/server_data/
 */obj/
 
 *.user
