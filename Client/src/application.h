@@ -18,6 +18,8 @@
 
 namespace yc {
 
+class Persistence;
+
 class Application {
 
 public:

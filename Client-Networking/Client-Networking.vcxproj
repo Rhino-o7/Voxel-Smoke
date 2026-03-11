@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>18.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{0a676f22-83ba-4da7-be56-7592c6339524}</ProjectGuid>
+    <RootNamespace>Client</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>Client-Networking</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <IncludePath>$(SolutionDir)CoreLib\src;$(SolutionDir)CoreLib\src\third_party\GLAD\include;$(SolutionDir)CoreLib\src\third_party\glfw\include;$(SolutionDir)CoreLib\src\third_party\glm;$(SolutionDir)CoreLib\src\third_party\imgui;$(SolutionDir)CoreLib\src\third_party\lodepng;$(SolutionDir)CoreLib\src\third_party\websocketpp-0.8.2;$(SolutionDir)CoreLib\src\third_party\asio-1.12.1\include;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+    <IncludePath>$(SolutionDir)CoreLib\src;$(SolutionDir)CoreLib\src\third_party\GLAD\include;$(SolutionDir)CoreLib\src\third_party\glfw\include;$(SolutionDir)CoreLib\src\third_party\glm;$(SolutionDir)CoreLib\src\third_party\imgui;$(SolutionDir)CoreLib\src\third_party\lodepng;$(SolutionDir)CoreLib\src\third_party\websocketpp-0.8.2;$(SolutionDir)CoreLib\src\third_party\asio-1.12.1\include;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(SolutionDir)build\bin\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)build\obj\$(ProjectName)\$(Configuration)\</IntDir>
+    <IncludePath>$(SolutionDir)CoreLib\src;$(SolutionDir)CoreLib\src\third_party\GLAD\include;$(SolutionDir)CoreLib\src\third_party\glfw\include;$(SolutionDir)CoreLib\src\third_party\glm;$(SolutionDir)CoreLib\src\third_party\imgui;$(SolutionDir)CoreLib\src\third_party\lodepng;$(SolutionDir)CoreLib\src\third_party\websocketpp-0.8.2;$(SolutionDir)CoreLib\src\third_party\asio-1.12.1\include;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(SolutionDir)build\bin\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)build\obj\$(ProjectName)\$(Configuration)\</IntDir>
+    <IncludePath>$(SolutionDir)CoreLib\src;$(SolutionDir)CoreLib\src\third_party\GLAD\include;$(SolutionDir)CoreLib\src\third_party\glfw\include;$(SolutionDir)CoreLib\src\third_party\glm;$(SolutionDir)CoreLib\src\third_party\imgui;$(SolutionDir)CoreLib\src\third_party\lodepng;$(SolutionDir)CoreLib\src\third_party\websocketpp-0.8.2;$(SolutionDir)CoreLib\src\third_party\asio-1.12.1\include;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)CoreLib\src;$(SolutionDir)CoreLib\src\third_party\websocketpp-0.8.2;$(SolutionDir)CoreLib\src\third_party\asio-1.12.1\include;$(SolutionDir)CoreLib\src\third_party\GLAD\include;$(SolutionDir)CoreLib\src\third_party\glfw\include;$(ProjectDir)src;$(ProjectDir)deps;$(SolutionDir)CoreLib\src\third_party\lodepng;$(SolutionDir)CoreLib\src\third_party\imgui;$(SolutionDir)CoreLib\src\third_party\;$(SolutionDir)CoreLib\src\third_party\glm;$(SolutionDir)CoreLib\src\third_party\FrustumCulling;$(SolutionDir)CoreLib\src\third_party\FastNoiseLite;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)CoreLib\src;$(SolutionDir)CoreLib\src\third_party\websocketpp-0.8.2;$(SolutionDir)CoreLib\src\third_party\asio-1.12.1\include;$(SolutionDir)CoreLib\src\third_party\GLAD\include;$(SolutionDir)CoreLib\src\third_party\glfw\include;$(ProjectDir)src;$(ProjectDir)deps;$(SolutionDir)CoreLib\src\third_party\lodepng;$(SolutionDir)CoreLib\src\third_party\imgui;$(SolutionDir)CoreLib\src\third_party\;$(SolutionDir)CoreLib\src\third_party\glm;$(SolutionDir)CoreLib\src\third_party\FrustumCulling;$(SolutionDir)CoreLib\src\third_party\FastNoiseLite;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_WEBSOCKETPP_CPP11_STL_;_WIN32_WINNT=0x0601;ASIO_STANDALONE;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)CoreLib\src;$(SolutionDir)CoreLib\src\third_party\websocketpp-0.8.2;$(SolutionDir)CoreLib\src\third_party\asio-1.12.1\include;$(SolutionDir)CoreLib\src\third_party\GLAD\include;$(SolutionDir)CoreLib\src\third_party\glfw\include;$(ProjectDir)src;$(ProjectDir)deps;$(SolutionDir)CoreLib\src\third_party\lodepng;$(SolutionDir)CoreLib\src\third_party\imgui;$(SolutionDir)CoreLib\src\third_party\;$(SolutionDir)CoreLib\src\third_party\glm;$(SolutionDir)CoreLib\src\third_party\FrustumCulling;$(SolutionDir)CoreLib\src\third_party\FastNoiseLite;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(SolutionDir)CoreLib\src\third_party\glfw\lib-vc2022;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>glfw3.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_WEBSOCKETPP_CPP11_STL_;_WIN32_WINNT=0x0601;ASIO_STANDALONE;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)CoreLib\src;$(SolutionDir)CoreLib\src\third_party\websocketpp-0.8.2;$(SolutionDir)CoreLib\src\third_party\asio-1.12.1\include;$(SolutionDir)CoreLib\src\third_party\GLAD\include;$(SolutionDir)CoreLib\src\third_party\glfw\include;$(ProjectDir)src;$(ProjectDir)deps;$(SolutionDir)CoreLib\src\third_party\lodepng;$(SolutionDir)CoreLib\src\third_party\imgui;$(SolutionDir)CoreLib\src\third_party\;$(SolutionDir)CoreLib\src\third_party\glm;$(SolutionDir)CoreLib\src\third_party\FrustumCulling;$(SolutionDir)CoreLib\src\third_party\FastNoiseLite;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(SolutionDir)CoreLib\src\third_party\glfw\lib-vc2022;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>glfw3.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="src\application.cpp" />
+    <ClCompile Include="src\gui\game_scene.cpp" />
+    <ClCompile Include="src\gui\gui.cpp" />
+    <ClCompile Include="src\gui\pause_scene.cpp" />
+    <ClCompile Include="src\gui\save_select_scene.cpp" />
+    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\network_client.cpp" />
+    <ClCompile Include="src\network_messages.cpp" />
+    <ClCompile Include="src\persistence.cpp" />
+    <ClCompile Include="src\save_system.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\application.h" />
+    <ClInclude Include="src\gui\game_scene.h" />
+    <ClInclude Include="src\gui\gui.h" />
+    <ClInclude Include="src\gui\pause_scene.h" />
+    <ClInclude Include="src\gui\save_select_scene.h" />
+    <ClInclude Include="src\network_client.h" />
+    <ClInclude Include="src\network_messages.h" />
+    <ClInclude Include="src\persistence.h" />
+    <ClInclude Include="src\save_system.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CoreLib\CoreLib.vcxproj">
+      <Project>{5d0545bb-8b0c-4a23-a5bb-7f5619b8bf64}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

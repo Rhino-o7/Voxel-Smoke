@@ -7,6 +7,8 @@
 #include "world/chunk.h"
 #include "world/block.h"
 #include "util/math.h"
+#include "runtime_state.h"
+#include "persistence.h"
 
 namespace yc {
 
@@ -21,6 +23,7 @@ namespace yc {
 
         Application::Width = width;
         Application::Height = height;
+        yc::runtime_state::SetViewportSize(width, height);
 
         // init GLFW
         glfwInit();
@@ -81,7 +84,7 @@ namespace yc {
         // set icon
         int iconWidth, iconHeight, iconChannel;
 
-        uint8_t* iconData = stbi_load("./resources/yourcraft.png", &iconWidth, &iconHeight, &iconChannel, STBI_default);
+        uint8_t* iconData = stbi_load("../CoreLib/resources/yourcraft.png", &iconWidth, &iconHeight, &iconChannel, STBI_default);
 
         GLFWimage icons;
         icons.width = iconWidth;
@@ -106,6 +109,7 @@ namespace yc {
 
         // Keep existing render dt (used for FPS display / movement baseline)
         Application::deltaTime = static_cast<float>(realDt);
+        yc::runtime_state::SetDeltaTime(Application::deltaTime);
 
         if (!saveSelectionActive) {
             gameManager.update(realDt);
@@ -288,6 +292,7 @@ namespace yc {
         glViewport(0, 0, width, height);
         Application::Width = width;
         Application::Height = height;
+        yc::runtime_state::SetViewportSize(width, height);
         app->player->getCamera()->update();
     }
 
