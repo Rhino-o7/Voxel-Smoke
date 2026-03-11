@@ -7,7 +7,8 @@
 #include "world/chunk.h"
 #include "world/block.h"
 #include "util/math.h"
-#include "network_client.h"
+#include "runtime_state.h"
+#include "persistence.h"
 
 namespace yc {
 
@@ -22,6 +23,7 @@ namespace yc {
 
         Application::Width = width;
         Application::Height = height;
+        yc::runtime_state::SetViewportSize(width, height);
 
         // init GLFW
         glfwInit();
@@ -60,7 +62,8 @@ namespace yc {
 
         Resource::Load();
 
-        persistence = new Persistence("");
+        saveSystem.openOrCreate("default");
+        persistence = new Persistence(saveSystem.getPaths().regionsRoot.string());
 
         gui.init(window);
 
@@ -81,7 +84,7 @@ namespace yc {
         // set icon
         int iconWidth, iconHeight, iconChannel;
 
-        uint8_t* iconData = stbi_load("./resources/yourcraft.png", &iconWidth, &iconHeight, &iconChannel, STBI_default);
+        uint8_t* iconData = stbi_load("../CoreLib/resources/yourcraft.png", &iconWidth, &iconHeight, &iconChannel, STBI_default);
 
         GLFWimage icons;
         icons.width = iconWidth;
@@ -106,6 +109,7 @@ namespace yc {
 
         // Keep existing render dt (used for FPS display / movement baseline)
         Application::deltaTime = static_cast<float>(realDt);
+        yc::runtime_state::SetDeltaTime(Application::deltaTime);
 
         if (!saveSelectionActive) {
             gameManager.update(realDt);
@@ -288,6 +292,7 @@ namespace yc {
         glViewport(0, 0, width, height);
         Application::Width = width;
         Application::Height = height;
+        yc::runtime_state::SetViewportSize(width, height);
         app->player->getCamera()->update();
     }
 
@@ -340,7 +345,6 @@ namespace yc {
 
     void Application::terminate() {
         saveCurrentGame();
-        NetworkClient::instance().disconnect();
         glfwTerminate();
     }
 
@@ -373,7 +377,7 @@ namespace yc {
         world->clearChunks();
         world->clearChimneyEmitters();
         world->setSeed(seed);
-        persistence->reset(name);
+        persistence->reset(saveSystem.getPaths().regionsRoot.string());
 
         gameManager.resetRound();
         applyCurrentSettings();
@@ -391,7 +395,7 @@ namespace yc {
 
         world->clearChunks();
         world->clearChimneyEmitters();
-        persistence->reset(name);
+        persistence->reset(saveSystem.getPaths().regionsRoot.string());
 
         if (saveSystem.hasSaveData()) {
             const bool loaded = saveSystem.loadGame(settings, gameManager, *world);
@@ -415,23 +419,6 @@ namespace yc {
 
     std::vector<std::string> Application::listSaves() const {
         return saveSystem.listSaves();
-    }
-
-    bool Application::connectToServer(const std::string& serverAddress, std::string& error) {
-        const bool ok = NetworkClient::instance().connect(serverAddress, &error);
-        if (ok) {
-            showServerConnectInSaveSelect = false;
-        }
-        return ok;
-    }
-
-    void Application::disconnectFromServer() {
-        NetworkClient::instance().disconnect();
-        showServerConnectInSaveSelect = true;
-    }
-
-    bool Application::isServerConnected() const {
-        return NetworkClient::instance().isConnected();
     }
 
     void Application::saveCurrentGame() {

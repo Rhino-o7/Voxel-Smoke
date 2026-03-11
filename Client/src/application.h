@@ -18,6 +18,8 @@
 
 namespace yc {
 
+class Persistence;
+
 class Application {
 
 public:
@@ -57,10 +59,6 @@ public:
     bool loadSave(const std::string& name);
     bool deleteSave(const std::string& name);
     std::vector<std::string> listSaves() const;
-    bool connectToServer(const std::string& serverAddress, std::string& error);
-    void disconnectFromServer();
-    bool isServerConnected() const;
-    bool shouldShowServerConnectInSaveSelect() const { return showServerConnectInSaveSelect; }
 
     void saveCurrentGame();
 
@@ -92,7 +90,6 @@ private:
     Persistence* persistence;
 
     SaveSystem saveSystem;
-    bool showServerConnectInSaveSelect = true;
 };
 
 }

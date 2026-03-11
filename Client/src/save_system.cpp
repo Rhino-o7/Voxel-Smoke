@@ -1,13 +1,9 @@
- #include "save_system.h"
+#include "save_system.h"
 
 #include <fstream>
 #include <vector>
 #include <algorithm>
 #include <cmath>
-#include <sstream>
-
-#include "network_client.h"
-#include "network_messages.h"
 
 namespace yc {
 
@@ -22,32 +18,32 @@ namespace {
         uint32_t version = SaveVersion;
     };
 
-    bool WriteBytes(std::ostream& out, const void* data, size_t size) {
+    bool WriteBytes(std::ofstream& out, const void* data, size_t size) {
         out.write(reinterpret_cast<const char*>(data), static_cast<std::streamsize>(size));
         return out.good();
     }
 
-    bool ReadBytes(std::istream& in, void* data, size_t size) {
+    bool ReadBytes(std::ifstream& in, void* data, size_t size) {
         in.read(reinterpret_cast<char*>(data), static_cast<std::streamsize>(size));
         return in.good();
     }
 
-    bool WriteU32(std::ostream& out, uint32_t value) { return WriteBytes(out, &value, sizeof(value)); }
-    bool ReadU32(std::istream& in, uint32_t& value) { return ReadBytes(in, &value, sizeof(value)); }
+    bool WriteU32(std::ofstream& out, uint32_t value) { return WriteBytes(out, &value, sizeof(value)); }
+    bool ReadU32(std::ifstream& in, uint32_t& value) { return ReadBytes(in, &value, sizeof(value)); }
 
-    bool WriteU8(std::ostream& out, uint8_t value) { return WriteBytes(out, &value, sizeof(value)); }
-    bool ReadU8(std::istream& in, uint8_t& value) { return ReadBytes(in, &value, sizeof(value)); }
+    bool WriteU8(std::ofstream& out, uint8_t value) { return WriteBytes(out, &value, sizeof(value)); }
+    bool ReadU8(std::ifstream& in, uint8_t& value) { return ReadBytes(in, &value, sizeof(value)); }
 
-    bool WriteDouble(std::ostream& out, double value) { return WriteBytes(out, &value, sizeof(value)); }
-    bool ReadDouble(std::istream& in, double& value) { return ReadBytes(in, &value, sizeof(value)); }
+    bool WriteDouble(std::ofstream& out, double value) { return WriteBytes(out, &value, sizeof(value)); }
+    bool ReadDouble(std::ifstream& in, double& value) { return ReadBytes(in, &value, sizeof(value)); }
 
-    bool WriteFloat(std::ostream& out, float value) { return WriteBytes(out, &value, sizeof(value)); }
-    bool ReadFloat(std::istream& in, float& value) { return ReadBytes(in, &value, sizeof(value)); }
+    bool WriteFloat(std::ofstream& out, float value) { return WriteBytes(out, &value, sizeof(value)); }
+    bool ReadFloat(std::ifstream& in, float& value) { return ReadBytes(in, &value, sizeof(value)); }
 
-    bool WriteInt(std::ostream& out, int value) { return WriteBytes(out, &value, sizeof(value)); }
-    bool ReadInt(std::istream& in, int& value) { return ReadBytes(in, &value, sizeof(value)); }
+    bool WriteInt(std::ofstream& out, int value) { return WriteBytes(out, &value, sizeof(value)); }
+    bool ReadInt(std::ifstream& in, int& value) { return ReadBytes(in, &value, sizeof(value)); }
 
-    bool WriteString(std::ostream& out, const std::string& value) {
+    bool WriteString(std::ofstream& out, const std::string& value) {
         const auto length = static_cast<uint32_t>(value.size());
         if (!WriteU32(out, length)) {
             return false;
@@ -60,7 +56,7 @@ namespace {
         return WriteBytes(out, value.data(), length);
     }
 
-    bool ReadString(std::istream& in, std::string& value) {
+    bool ReadString(std::ifstream& in, std::string& value) {
         uint32_t length = 0;
         if (!ReadU32(in, length)) {
             return false;
@@ -76,8 +72,19 @@ namespace {
 }
 
 std::vector<std::string> SaveSystem::listSaves() const {
-    NetworkMessages messages(NetworkClient::instance());
-    std::vector<std::string> result = messages.listSaves();
+    std::vector<std::string> result;
+
+    std::error_code ec;
+    if (!fs::exists(baseFolder, ec)) {
+        fs::create_directories(baseFolder, ec);
+    }
+
+    for (const auto& entry : fs::directory_iterator(baseFolder, ec)) {
+        if (entry.is_directory()) {
+            result.push_back(entry.path().filename().string());
+        }
+    }
+
     std::sort(result.begin(), result.end());
     return result;
 }
@@ -87,8 +94,14 @@ bool SaveSystem::deleteSave(const std::string& name) {
         return false;
     }
 
-    NetworkMessages messages(NetworkClient::instance());
-    return messages.deleteSave(name);
+    std::error_code ec;
+    const auto target = baseFolder / name;
+    if (!fs::exists(target, ec)) {
+        return false;
+    }
+
+    fs::remove_all(target, ec);
+    return !ec;
 }
 
 bool SaveSystem::openOrCreate(const std::string& name) {
@@ -96,41 +109,49 @@ bool SaveSystem::openOrCreate(const std::string& name) {
         return false;
     }
 
-    NetworkMessages messages(NetworkClient::instance());
-    if (!messages.openSave(name)) {
-        return false;
-    }
-
     currentSaveName = name;
-    paths.saveRoot = name;
-    paths.regionsRoot.clear();
-    paths.dataFile.clear();
-    return true;
+    paths.saveRoot = baseFolder / name;
+    paths.regionsRoot = paths.saveRoot / "regions";
+    paths.dataFile = paths.saveRoot / "save.dat";
+
+    std::error_code ec;
+    fs::create_directories(paths.regionsRoot, ec);
+    return !ec;
 }
 
 bool SaveSystem::createNew(const std::string& name) {
-    if (name.empty()) {
+    if (!openOrCreate(name)) {
         return false;
     }
 
-    NetworkMessages messages(NetworkClient::instance());
-    if (!messages.createSave(name)) {
-        return false;
+    std::error_code ec;
+    if (fs::exists(paths.regionsRoot, ec)) {
+        for (const auto& entry : fs::directory_iterator(paths.regionsRoot, ec)) {
+            fs::remove_all(entry.path(), ec);
+        }
+    }
+    if (fs::exists(paths.dataFile, ec)) {
+        fs::remove(paths.dataFile, ec);
     }
 
-    currentSaveName = name;
-    paths.saveRoot = name;
-    paths.regionsRoot.clear();
-    paths.dataFile.clear();
-    return true;
+    return !ec;
 }
 
 bool SaveSystem::saveGame(const Settings& settings, const GameManager& gameManager, const yc::world::World& world) {
-    if (currentSaveName.empty()) {
+    if (paths.saveRoot.empty()) {
         return false;
     }
 
-    std::ostringstream out(std::ios::binary);
+    std::error_code ec;
+    fs::create_directories(paths.regionsRoot, ec);
+    if (ec) {
+        return false;
+    }
+
+    std::ofstream out(paths.dataFile, std::ios::binary | std::ios::out | std::ios::trunc);
+    if (!out.is_open()) {
+        return false;
+    }
 
     SaveHeader header{};
     if (!WriteBytes(out, &header, sizeof(header))) return false;
@@ -232,28 +253,19 @@ bool SaveSystem::saveGame(const Settings& settings, const GameManager& gameManag
         if (!WriteDouble(out, exposure)) return false;
     }
 
-    if (!out.good()) {
-        return false;
-    }
-
-    const std::string payload = out.str();
-    NetworkMessages messages(NetworkClient::instance());
-    return messages.writeSaveData(currentSaveName, payload);
+    out.flush();
+    return out.good();
 }
 
 bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::world::World& world) {
-    if (currentSaveName.empty()) {
+    if (paths.dataFile.empty() || !fs::exists(paths.dataFile)) {
         return false;
     }
 
-    NetworkMessages messages(NetworkClient::instance());
-    const auto payloadOpt = messages.readSaveData(currentSaveName);
-    if (!payloadOpt.has_value()) {
+    std::ifstream in(paths.dataFile, std::ios::binary | std::ios::in);
+    if (!in.is_open()) {
         return false;
     }
-
-    const std::string& payload = payloadOpt.value();
-    std::istringstream in(payload, std::ios::binary);
 
     SaveHeader header{};
     if (!ReadBytes(in, &header, sizeof(header))) return false;
@@ -495,12 +507,12 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
 }
 
 bool SaveSystem::hasSaveData() const {
-    if (currentSaveName.empty()) {
+    if (paths.dataFile.empty()) {
         return false;
     }
 
-    NetworkMessages messages(NetworkClient::instance());
-    return messages.hasSaveData(currentSaveName);
+    std::error_code ec;
+    return fs::exists(paths.dataFile, ec);
 }
 
 }

@@ -42,38 +42,6 @@ void SaveSelectScene::render() {
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove;
     ImGui::Begin("Select Save", nullptr, flags);
 
-    const bool showConnectUi = application->shouldShowServerConnectInSaveSelect();
-    if (showConnectUi) {
-        ImGui::InputText("Server", serverAddress, sizeof(serverAddress));
-        ImGui::SameLine();
-        if (ImGui::Button("Connect")) {
-            connectError.clear();
-            if (!application->connectToServer(serverAddress, connectError)) {
-                if (connectError.empty()) {
-                    connectError = "Failed to connect";
-                }
-            } else {
-                refreshList();
-            }
-        }
-
-        ImGui::Text("Status: %s", application->isServerConnected() ? "Connected" : "Disconnected");
-        if (!connectError.empty()) {
-            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", connectError.c_str());
-        }
-
-        ImGui::Separator();
-    }
-
-    if (!application->isServerConnected()) {
-        ImGui::Text("Server is disconnected.");
-        if (!showConnectUi) {
-            ImGui::Text("Reconnect from main menu by disconnecting to title.");
-        }
-        ImGui::End();
-        return;
-    }
-
     if (ImGui::Button("Refresh")) {
         refreshList();
     }
