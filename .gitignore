@@ -3,6 +3,7 @@ Client/saves/
 
 build/obj/
 build/bin/Debug/server_data/
+build/bin/Debug/saves/
 */obj/
 
 *.user
