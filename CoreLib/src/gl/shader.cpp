@@ -1,11 +1,35 @@
 #include <iostream>
+#include <filesystem>
+#include <vector>
 #include <glm/gtc/type_ptr.hpp>
 #include "gl/shader.h"
 #include "util/file.h"
 
 namespace yc::gl {
 
-const std::string shaderFolder = "../CoreLib/resources/shaders/";
+namespace {
+    std::string ResolveShaderFolder() {
+        namespace fs = std::filesystem;
+
+        const std::vector<fs::path> shaderRoots = {
+            fs::path("../CoreLib/resources/shaders"),
+            fs::path("CoreLib/resources/shaders"),
+            fs::path("resources/shaders"),
+            fs::path("../resources/shaders"),
+            fs::path("../../resources/shaders")
+        };
+
+        for (const auto& root : shaderRoots) {
+            // Resolve shader root from common launch locations.
+            std::error_code ec;
+            if (fs::exists(root, ec)) {
+                return (root.string() + "/");
+            }
+        }
+
+        return "../CoreLib/resources/shaders/";
+    }
+}
 
 Shader::Shader() {
 
@@ -17,6 +41,8 @@ void Shader::use() {
 
 void Shader::loadFromFile(const std::string& vertexShaderPath,
     const std::string& fragmentShaderPath) {
+
+    const std::string shaderFolder = ResolveShaderFolder();
     
     std::string vertexShaderSrc = yc::util::readTextFromFile(shaderFolder + vertexShaderPath);
     std::string fragmentShaderSrc = yc::util::readTextFromFile(shaderFolder + fragmentShaderPath);
@@ -24,6 +50,7 @@ void Shader::loadFromFile(const std::string& vertexShaderPath,
     const char* vertexShaderSrcC = vertexShaderSrc.c_str();
     const char* fragmentShaderSrcC = fragmentShaderSrc.c_str();
     
+    // Compile individual stages, then link into one program object.
     GLint vertexShader = glCreateShader(GL_VERTEX_SHADER);
     GLint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 
@@ -48,6 +75,7 @@ void Shader::loadFromFile(const std::string& vertexShaderPath,
 }
 
 void Shader::checkCompileErrors(unsigned int shader) {
+    // Validate compile status and emit GLSL diagnostics to stdout.
     int success;
     char infoLog[1024];
 

@@ -12,6 +12,7 @@ void CrossHair::init() {
 }
 
 void CrossHair::update() {
+    // Push current viewport and texture dimensions used by the crosshair shader.
     yc::Resource::CrossHairShader.use();
     yc::Resource::CrossHairShader.setInt("screen_width", yc::runtime_state::GetViewportWidth());
     yc::Resource::CrossHairShader.setInt("screen_height", yc::runtime_state::GetViewportHeight());
@@ -20,6 +21,7 @@ void CrossHair::update() {
 }
 
 void CrossHair::render() {
+    // Draw HUD crosshair with alpha blending on top of the 3D frame.
     Resource::CrossHairTexture.bind();
     Resource::CrossHairShader.use();
     glEnable(GL_BLEND);

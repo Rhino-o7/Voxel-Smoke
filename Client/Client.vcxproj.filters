@@ -63,8 +63,4 @@
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
-  <ItemGroup>
-    <None Include="..\\CoreLib\\resources\\shaders\\smoke_volume.vert" />
-    <None Include="..\\CoreLib\\resources\\shaders\\smoke_volume.frag" />
-  </ItemGroup>
 </Project>

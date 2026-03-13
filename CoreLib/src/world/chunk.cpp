@@ -27,6 +27,7 @@ void Chunk::buildMeshCpu(std::shared_ptr<Chunk> northChunk,
                          std::shared_ptr<Chunk> southChunk,
                          std::shared_ptr<Chunk> eastChunk,
                          std::shared_ptr<Chunk> westChunk) {
+    // Build CPU-side staging buffers first; GPU upload happens later on main thread.
     MeshStagingData localStaging;
 
     size_t chunkOpaqueVerticesSize = 0;
@@ -57,6 +58,7 @@ void Chunk::buildMeshCpu(std::shared_ptr<Chunk> northChunk,
     std::lock_guard<std::mutex> readLock(this->blocksMutex);
 
     auto getNeighborBlock = [&](int32_t x, int32_t y, int32_t z) -> const BlockData* {
+        // Resolve neighbor blocks across chunk boundaries using loaded neighbors when available.
         if (y < 0 || y >= Chunk::Height) {
             return nullptr;
         }
@@ -85,6 +87,7 @@ void Chunk::buildMeshCpu(std::shared_ptr<Chunk> northChunk,
     };
 
     auto shouldRenderFace = [&](BlockType blockType, const BlockData* neighborBlock) {
+        // Skip faces hidden by opaque neighbors or merged transparent faces of same type.
         if (neighborBlock == nullptr) {
             return true;
         }
@@ -398,6 +401,7 @@ void Chunk::buildMeshCpu(std::shared_ptr<Chunk> northChunk,
 
 void Chunk::uploadMeshFromStaging() {
     std::lock_guard<std::mutex> guard(this->stagingMutex);
+    // Transfer prepared staging buffers into GPU meshes.
 
     // Opaque
     if (stagingData.opaqueIndices.empty()) {
@@ -527,6 +531,7 @@ void Chunk::buildMeshIfNeeded() {
         }
 
         if (tryMarkBuilding()) {
+            // Queue CPU mesh generation on worker threads to keep frame thread responsive.
             // Use shared_from_this to keep chunk alive while worker runs
             std::shared_ptr<Chunk> self = this->shared_from_this();
             if (self && this->world) {

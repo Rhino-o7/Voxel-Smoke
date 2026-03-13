@@ -52,6 +52,7 @@ const float SmokeVolumeRenderer::Vertices[] = {
 };
 
 void SmokeVolumeRenderer::init() {
+    // Cube mesh reused as the proxy volume for each simulated smoke plume.
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
 
@@ -78,6 +79,7 @@ bool SmokeVolumeRenderer::computePlumeBounds(const yc::world::ChimneySource& sou
         return false;
     }
 
+    // Build a wind-aligned box that encloses the smoke integration region.
     const glm::dvec2 perp(-windDir.y, windDir.x);
 
     const glm::dvec2 base(source.worldPos.x, source.worldPos.z);
@@ -145,6 +147,7 @@ void SmokeVolumeRenderer::render(yc::Camera* camera,
         lastSimTimeSec = simTimeSec;
         return;
     }
+    // Smooth wind input over simulation time to avoid abrupt visual jumps.
     const glm::vec2 previousDir = smoothedWindDir;
     const float previousSpeed = smoothedWindSpeed;
     if (!hasWind || dt < 0.0) {
@@ -232,6 +235,7 @@ void SmokeVolumeRenderer::render(yc::Camera* camera,
     const float maxDistSq = maxDist > 0.0f ? maxDist * maxDist : 0.0f;
 
     for (const auto& source : sources) {
+        // Draw one ray-marched box per enabled chimney source.
         if (!source.enabled) {
             continue;
         }

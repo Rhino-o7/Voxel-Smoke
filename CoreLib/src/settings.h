@@ -5,14 +5,17 @@
 namespace yc {
 
 struct Settings {
+    // Global UI scaling for in-game overlays.
     struct UiSettings {
         float scale = 1.0f;
     } ui;
 
+    // Maps accumulated crop exposure to visual/gameplay darkening.
     struct ExposureSettings {
         float exposureScale = 0.001f;
     } exposure;
 
+    // Lighting profile used across terrain, water and day/night transitions.
     struct LightingSettings {
         float sunDirectionX = -0.4f;
         float sunDirectionY = -1.0f;
@@ -39,16 +42,18 @@ struct Settings {
         float waterMinAlpha = 0.72f;
     } lighting;
 
+    // Core simulation startup defaults.
     struct GameSettings {
         double timeScale = 10.0;
         float temperatureC = 20.0f;
         bool startSimulationRunning = false;
-        std::string windCsvPath = "CoreLib/resources/simulation/wind_test.csv";
+        std::string windCsvPath = "resources/simulation/wind.csv";
         int currentSeason = 0;
         bool dayNightCycleEnabled = true;
         int startHour = 8;
     } game;
 
+    // Chunk loading and world render controls.
     struct WorldSettings {
         int viewDistance = 24;
         int maxUnloadChunkPerFrame = 4;
@@ -66,14 +71,16 @@ struct Settings {
         float jumpHeight = 1.0f;
     } player;
 
+    // Default dimensions for newly spawned chimneys.
     struct ChimneySettings {
         int height = 20;
         int radius = 4;
         double exitVelocity = 10.0;
     } chimney;
 
+    // Smoke volume raymarch and plume behavior tuning.
     struct SmokeSettings {
-        int stepCount = 64;
+        int stepCount = 128;
         float densityScale = 0.45f;
         float colorR = 0.5f;
         float colorG = 0.7f;

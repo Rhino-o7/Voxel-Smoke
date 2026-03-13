@@ -28,6 +28,8 @@ FrameBuffer::FrameBuffer(int32_t width, int32_t height):
     
 void FrameBuffer::init() {
 
+    // Build a fullscreen quad used to sample the framebuffer texture in post-process passes.
+
     mesh.init();
     mesh.bind();
 

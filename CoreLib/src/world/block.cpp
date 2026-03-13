@@ -20,10 +20,12 @@ BlockData::BlockData(BlockType blockType, BlockFaceDirection faceDirection) {
 }
 
 BlockType BlockData::getType() const {
+    // Lower 5 bits store block type id.
     return static_cast<BlockType>(this->data & 0b11111);
 }
 
 BlockFaceDirection BlockData::getFaceDirection() const {
+    // Remaining bits store orientation metadata used by some blocks.
     return static_cast<BlockFaceDirection>((this->data >> 5));
 }
 

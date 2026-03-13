@@ -5,6 +5,7 @@
 namespace yc::runtime_state {
 
 namespace {
+// Shared runtime values consumed by rendering and movement code each frame.
 int32_t g_viewportWidth = 1600;
 int32_t g_viewportHeight = 900;
 float g_deltaTime = 1.0f / 60.0f;

@@ -4,6 +4,9 @@
     <Platform Name="x86" />
   </Configurations>
   <Project Path="Client-Networking/Client-Networking.vcxproj" Id="0a676f22-83ba-4da7-be56-7592c6339524" />
+  <Project Path="Client-Web/Client-Web.vcxproj" Id="1c3c421f-90b3-4b8e-8fc8-6d46e49b45d8">
+    <Build Solution="Debug|x64" Project="false" />
+  </Project>
   <Project Path="Client/Client.vcxproj" Id="8bbbbc26-11f5-4af7-9066-9f20ecc3c049" />
   <Project Path="CoreLib/CoreLib.vcxproj" Id="5d0545bb-8b0c-4a23-a5bb-7f5619b8bf64" />
   <Project Path="Server/Server.vcxproj" Id="63d8a851-7332-4f1f-8f9c-69b92174bce4" />

@@ -3,6 +3,7 @@
 namespace yc::graphic {
 
 int32_t GetFloraTexureCoord(yc::world::BlockType blockType, int32_t id) {
+    // Map flora block type to atlas tile index used by billboard quads.
     switch (blockType) {
         case yc::world::BlockType::GRASS:
             return (2<<4) + 0;

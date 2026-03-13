@@ -24,6 +24,7 @@ void WindSystem::clear() {
 }
 
 bool WindSystem::loadFromCsvFile(const std::string& path) {
+    // CSV format: timestampSec,speed,directionDeg
     clear();
 
     std::ifstream in(path);

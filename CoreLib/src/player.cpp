@@ -41,14 +41,13 @@ void Player::init() {
         yc::world::BlockType::GRASS_BLOCK,
         yc::world::BlockType::DIRT,
         yc::world::BlockType::CROP,
-		yc::world::BlockType::GLASS,
-       
         yc::world::BlockType::CHIMNEY
     };
 }
 
 void Player::update() {
     if (!flyMode) {
+        // Apply gravity and resolve vertical motion in small increments to prevent tunneling.
         const float dt = yc::runtime_state::GetDeltaTime();
         const float gravityAccel = BaseGravity * gravityMultiplier;
         verticalVelocity -= gravityAccel * dt;
@@ -87,6 +86,7 @@ void Player::update() {
 
     auto coord = camera.getPosition();
     auto direction = camera.getDirection();
+    // Raycast from the camera to detect the currently targeted block.
     auto raycast = world->raycastCheck(coord, direction, false, true);
     
     selectingBlock = raycast.block.getType() != yc::world::BlockType::NONE;
@@ -210,6 +210,7 @@ bool Player::isSolidBlock(world::BlockType type) const {
 }
 
 bool Player::collidesAtPosition(const glm::vec3& position) const {
+    // Build a capsule-like AABB around the player's standing body and test overlapped voxels.
     const glm::vec3 minPos(
         position.x - WalkColliderRadius,
         position.y - WalkEyeHeight,
@@ -247,6 +248,7 @@ void Player::moveWithCollision(const glm::vec3& delta) {
 
     auto position = camera.getPosition();
 
+    // Resolve each axis independently so sliding along walls feels natural.
     const auto tryAxisMove = [&](float axisDelta, const glm::vec3& axis) {
         if (std::fabs(axisDelta) <= 0.0f) {
             return;
@@ -313,6 +315,7 @@ void Player::jump() {
         return;
     }
 
+    // Initial jump velocity from kinematics: v = sqrt(2gh).
     const float gravityAccel = BaseGravity * gravityMultiplier;
     verticalVelocity = std::sqrt(std::max(0.1f, 2.0f * gravityAccel * jumpHeight));
     onGround = false;

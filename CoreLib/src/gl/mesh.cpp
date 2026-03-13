@@ -17,6 +17,7 @@ void Mesh::unbind() {
 }
 
 void Mesh::draw() {
+    // Indexed triangle draw; data is expected in currently bound VAO/EBO.
     if (indicesCount>0) {
         glDrawElements(GL_TRIANGLES, this->indicesCount, GL_UNSIGNED_INT, 0);
     }
@@ -59,6 +60,7 @@ void Mesh::updateIndices(const std::vector<uint32_t>& indices) {
 
 template<typename T>
 void Mesh::addBuffer(size_t size, T* data, size_t dataSize, GLuint dataType, GLuint drawType) {
+    // Create a VBO and bind it to the next vertex attribute slot.
     GLuint vbo;
 
     glGenBuffers(1, &vbo);
@@ -128,6 +130,7 @@ void Mesh::updateStaticBuffer(size_t index, const std::vector<uint32_t>& data){
 }
 
 void Mesh::updateStaticBufferRange(size_t index, size_t elementOffset, const float* data, size_t elementCount){
+    // Partial update to avoid re-uploading full buffers for small changes.
     glBindBuffer(GL_ARRAY_BUFFER, this->buffers[index]);
     glBufferSubData(GL_ARRAY_BUFFER, elementOffset * sizeof(float), elementCount * sizeof(float), data);
 }

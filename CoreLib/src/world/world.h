@@ -79,8 +79,6 @@ public:
     void reloadChunks();
     void saveChunks();
 
-    // (removed) use detached threads from Chunk when needed
-
     void spawnTreeAt(const glm::ivec3& coord);
     void spawnChimneyAt(const glm::ivec3& coord, int height, int radius, double exitVelocity);
 
@@ -106,6 +104,7 @@ public:
     void setSmokeSettings(const yc::Settings::SmokeSettings& value) { smokeSettings = value; }
     const yc::Settings::SmokeSettings& getSmokeSettings() const { return smokeSettings; }
 
+    // Provides read-only crop exposure values to chunks for rendering.
     void setCropExposureMap(const CropExposureMap* map);
     double getCropExposureAtBlock(const BlockPos& blockPos) const;
     std::vector<BlockPos> getLoadedBlockPositionsOfType(BlockType type) const;
@@ -124,14 +123,14 @@ public:
     void setChimneyEmitters(const std::vector<ChimneySource>& emitters);
     void clearChimneyEmitters();
 
-    // Thread pool for background jobs (chunk CPU builds)
+    // Enqueues chunk CPU work for worker threads.
     void enqueueJob(const std::function<void()>& job);
 
 private:
     std::unordered_map<glm::ivec2, std::shared_ptr<Chunk>, HashChunkCoord> chunks;
     std::queue<std::shared_ptr<Chunk>> shouldBeUnloadedChunks;
 
-    // Worker thread pool
+    // Worker-thread job queue for asynchronous chunk generation/build.
     std::vector<std::thread> workerThreads;
     std::queue<std::function<void()>> jobQueue;
     std::mutex jobQueueMutex;

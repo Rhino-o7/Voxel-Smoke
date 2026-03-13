@@ -8,6 +8,7 @@ yc::gl::Texture::Texture() {
 }
 
 void yc::gl::Texture::loadFromFile(std::string path) {
+    // Create texture object and upload image pixels from disk.
     glGenTextures(1, &id);
     glBindTexture(GL_TEXTURE_2D, id);
 
@@ -44,6 +45,7 @@ void yc::gl::Texture::bind(uint32_t slot) {
 }
 
 void yc::gl::Texture::allocate(int32_t width, int32_t height) {
+    // Allocate/resize GPU storage without providing initial pixel data.
     bind();
     glTexImage2D(
         GL_TEXTURE_2D, 0, 

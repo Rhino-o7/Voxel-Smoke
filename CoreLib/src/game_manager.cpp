@@ -34,6 +34,7 @@ void GameManager::init(yc::world::World* world, Player* player) {
 }
 
 void GameManager::update(double realDtSec) {
+    // Convert real frame delta to simulation delta when simulation is active.
     double simDtSec = 0.0;
 
     if (simulationRunning) {
@@ -53,13 +54,37 @@ void GameManager::update(double realDtSec) {
     finishHarvestIfNeeded();
 
     if (pendingCropRegistrationTicks > 0) {
+        // Deferred registration helps after loading chunks so crops become tracked incrementally.
         if ((pendingCropRegistrationTicks % 10) == 0) {
             registerLoadedCropBlocks();
         }
         --pendingCropRegistrationTicks;
     }
 
-    updateCropExposure(simDtSec);
+    if (realDtSec > 0.0) {
+        cropChunkRebuildAccumulatorSec += realDtSec;
+        if (cropChunkRebuildAccumulatorSec >= CropChunkRebuildPeriodSec) {
+            cropChunkRebuildAccumulatorSec = std::fmod(cropChunkRebuildAccumulatorSec, CropChunkRebuildPeriodSec);
+            rebuildOneCropChunk();
+        }
+    }
+
+    if (simulationRunning && simDtSec > 0.0) {
+        // Advance crop exposure in fixed-size simulation steps for stable behavior.
+        cropExposureAccumulatorSec += simDtSec;
+
+        constexpr int MaxExposureStepsPerFrame = 8;
+        int steps = 0;
+        while (cropExposureAccumulatorSec >= CropExposureUpdateStepSec && steps < MaxExposureStepsPerFrame) {
+            updateCropExposure(CropExposureUpdateStepSec);
+            cropExposureAccumulatorSec -= CropExposureUpdateStepSec;
+            ++steps;
+        }
+
+        if (steps == MaxExposureStepsPerFrame && cropExposureAccumulatorSec >= CropExposureUpdateStepSec) {
+            cropExposureAccumulatorSec = std::fmod(cropExposureAccumulatorSec, CropExposureUpdateStepSec);
+        }
+    }
 }
 
 void GameManager::pauseTime() {
@@ -89,6 +114,7 @@ void GameManager::skipToEndOfCurrentSeason() {
 
     registerLoadedCropBlocks();
 
+    // Step through simulation in fixed chunks so wind/pollution systems evolve consistently.
     constexpr double integrationStepSec = 900.0;
     double simTime = currentSimTime;
 
@@ -159,10 +185,16 @@ bool GameManager::loadWindCsv(const std::string& path) {
     candidates.push_back(path);
 
     const fs::path fileName = fs::path(path).filename();
+
+    // Prefer runtime resources folder first.
+    candidates.push_back((fs::path("./resources/simulation") / fileName).string());
+    candidates.push_back((fs::path("../resources/simulation") / fileName).string());
+    candidates.push_back((fs::path("../../resources/simulation") / fileName).string());
+
+    // Compatibility fallbacks (older layouts).
     candidates.push_back((fs::path("./CoreLib/resources/simulation") / fileName).string());
     candidates.push_back((fs::path("../CoreLib/resources/simulation") / fileName).string());
     candidates.push_back((fs::path("../../CoreLib/resources/simulation") / fileName).string());
-    candidates.push_back((fs::path("./resources/simulation") / fileName).string());
 
     bool loaded = false;
     for (const auto& candidate : candidates) {
@@ -178,7 +210,7 @@ bool GameManager::loadWindCsv(const std::string& path) {
         if (world) {
             world->setWindState(currentWindState);
         }
-    }  
+    }
     return loaded;
 }
 
@@ -189,11 +221,10 @@ GameManager::TimeOfDay GameManager::getTimeOfDay() const
     const int daySeconds = positiveMod(totalSeconds, secondsInDay);
 
     return {
-
         daySeconds / 3600,
         (daySeconds / 60) % 60,
         daySeconds % 60
-	};
+    };
 }
 
 GameManager::Date GameManager::getDate() const {
@@ -275,11 +306,36 @@ double GameManager::getPollutionAtBlock(const yc::world::BlockPos& blockPos) con
 }
 
 void GameManager::registerCropBlock(const yc::world::BlockPos& blockPos) {
-    cropExposureByBlock.emplace(blockPos, 0.0);
+    cropExposureByBlock.try_emplace(blockPos, 0.0);
+    cropChunkRebuildList.clear();
+    nextCropChunkRebuildIndex = 0;
+
+    if (!world) {
+        return;
+    }
+
+    const auto chunkCoord = yc::world::World::GetChunkCoordOf(blockPos);
+    if (auto chunk = world->getChunkIfLoadedAt(chunkCoord)) {
+        chunk->updateCropExposureBuffers([this](const glm::ivec3& worldCoord) {
+            return static_cast<float>(getCropExposureAtBlock(worldCoord));
+        });
+    }
 }
 
 void GameManager::unregisterCropBlock(const yc::world::BlockPos& blockPos) {
-    cropExposureByBlock.erase(blockPos);
+    const size_t erased = cropExposureByBlock.erase(blockPos);
+    cropChunkRebuildList.clear();
+    nextCropChunkRebuildIndex = 0;
+    if (erased == 0 || !world) {
+        return;
+    }
+
+    const auto chunkCoord = yc::world::World::GetChunkCoordOf(blockPos);
+    if (auto chunk = world->getChunkIfLoadedAt(chunkCoord)) {
+        chunk->updateCropExposureBuffers([this](const glm::ivec3& worldCoord) {
+            return static_cast<float>(getCropExposureAtBlock(worldCoord));
+        });
+    }
 }
 
 void GameManager::registerLoadedCropBlocks() {
@@ -287,10 +343,36 @@ void GameManager::registerLoadedCropBlocks() {
         return;
     }
 
+    // Pull currently loaded crop blocks into the exposure map and refresh affected chunk buffers.
+    std::unordered_set<glm::ivec2, yc::world::World::HashChunkCoord> dirtyChunks;
     const auto loadedCropBlocks = world->getLoadedBlockPositionsOfType(yc::world::BlockType::CROP);
     for (const auto& blockPos : loadedCropBlocks) {
-        cropExposureByBlock.try_emplace(blockPos, 0.0);
+        const auto [it, inserted] = cropExposureByBlock.try_emplace(blockPos, 0.0);
+        (void)it;
+        if (inserted) {
+            dirtyChunks.insert(yc::world::World::GetChunkCoordOf(blockPos));
+        }
     }
+
+    for (const auto& chunkCoord : dirtyChunks) {
+        if (auto chunk = world->getChunkIfLoadedAt(chunkCoord)) {
+            chunk->updateCropExposureBuffers([this](const glm::ivec3& worldCoord) {
+                return static_cast<float>(getCropExposureAtBlock(worldCoord));
+            });
+        }
+    }
+
+    if (!dirtyChunks.empty()) {
+        cropChunkRebuildList.clear();
+        nextCropChunkRebuildIndex = 0;
+    }
+}
+
+void GameManager::setCropExposureByBlock(const yc::world::CropExposureMap& map) {
+    cropExposureByBlock = map;
+    cropChunkRebuildList.clear();
+    nextCropChunkRebuildIndex = 0;
+    refreshCropExposureBuffers();
 }
 
 double GameManager::getCropExposureAtBlock(const yc::world::BlockPos& blockPos) const {
@@ -299,6 +381,7 @@ double GameManager::getCropExposureAtBlock(const yc::world::BlockPos& blockPos) 
 }
 
 float GameManager::getCropHealthPercent() const {
+    // Convert average exposure to a [0..1] health indicator used by UI/gameplay.
     if (cropExposureByBlock.empty()) return 1.0f;
 
     const double scale = std::max(1e-9, static_cast<double>(exposureScale));
@@ -326,6 +409,10 @@ void GameManager::resetRound() {
     harvestResult = {};
     lastAbsoluteDay = -1;
     cropExposureByBlock.clear();
+    cropExposureAccumulatorSec = 0.0;
+    cropChunkRebuildAccumulatorSec = 0.0;
+    cropChunkRebuildList.clear();
+    nextCropChunkRebuildIndex = 0;
     setCurrentSeason(Season::Spring, false);
     setCurrentHour(8);
     stopSimulation();
@@ -345,6 +432,10 @@ void GameManager::continueToNextFarmingYear() {
 
     farmingYear += 1;
     cropExposureByBlock.clear();
+    cropExposureAccumulatorSec = 0.0;
+    cropChunkRebuildAccumulatorSec = 0.0;
+    cropChunkRebuildList.clear();
+    nextCropChunkRebuildIndex = 0;
     gameOver = false;
     harvestResult = {};
     lastAbsoluteDay = -1;
@@ -386,6 +477,7 @@ void GameManager::finishHarvestIfNeeded() {
     }
 
     const auto date = getDate();
+    // Harvest resolves once per farming year at the beginning of Autumn.
     if (date.season != Season::Autumn || date.dayOfSeason != 1) {
         return;
     }
@@ -429,6 +521,38 @@ void GameManager::refreshCropExposureBuffers() {
                 return static_cast<float>(getCropExposureAtBlock(worldCoord));
             });
         }
+    }
+}
+
+void GameManager::rebuildOneCropChunk() {
+    if (!world) {
+        return;
+    }
+
+    if (cropExposureByBlock.empty()) {
+        cropChunkRebuildList.clear();
+        nextCropChunkRebuildIndex = 0;
+        return;
+    }
+
+    if (cropChunkRebuildList.empty() || nextCropChunkRebuildIndex >= cropChunkRebuildList.size()) {
+        std::unordered_set<glm::ivec2, yc::world::World::HashChunkCoord> chunkSet;
+        for (const auto& [blockPos, exposure] : cropExposureByBlock) {
+            (void)exposure;
+            chunkSet.insert(yc::world::World::GetChunkCoordOf(blockPos));
+        }
+
+        cropChunkRebuildList.assign(chunkSet.begin(), chunkSet.end());
+        nextCropChunkRebuildIndex = 0;
+    }
+
+    if (cropChunkRebuildList.empty()) {
+        return;
+    }
+
+    const auto chunkCoord = cropChunkRebuildList[nextCropChunkRebuildIndex++];
+    if (auto chunk = world->getChunkIfLoadedAt(chunkCoord)) {
+        chunk->prepareToBuildMesh();
     }
 }
 

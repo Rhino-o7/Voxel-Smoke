@@ -3,6 +3,7 @@
 #include <string>
 #include <cmath>
 #include <algorithm>
+#include <vector>
 
 #include "game_clock.h"
 #include "player.h"
@@ -15,6 +16,7 @@ namespace yc {
 
 class GameManager {
 public:
+    // In-game season order used by calendar and harvest logic.
     enum class Season {
         Spring = 0,
         Summer,
@@ -107,14 +109,16 @@ public:
     double getCropExposureAtBlock(const yc::world::BlockPos& blockPos) const;
     yc::world::World* getWorld() const { return world; }
     const yc::world::CropExposureMap& getCropExposureByBlock() const { return cropExposureByBlock; }
-    void setCropExposureByBlock(const yc::world::CropExposureMap& map) { cropExposureByBlock = map; }
+    void setCropExposureByBlock(const yc::world::CropExposureMap& map);
     int getCropBlockCount() const { return static_cast<int>(cropExposureByBlock.size()); }
     float getCropHealthPercent() const;
     float getCropScoreAtBlock(const yc::world::BlockPos& blockPos) const;
     HarvestResult getHarvestResult() const { return harvestResult; }
     bool isGameOver() const { return gameOver; }
     void resetRound();
+    // Starts a fresh year at Spring day 1, 08:00 while keeping world/chunk state loaded.
     void continueToNextFarmingYear();
+    // Fast-forwards simulation to the next Autumn day 1 to trigger harvest resolution.
     void skipToEndOfCurrentSeason();
     int getFarmingYear() const { return farmingYear; }
     void setFarmingYear(int value) { farmingYear = std::max(1, value); }
@@ -127,17 +131,23 @@ public:
     void setSimulationRunning(bool value);
 
 private:
+    // Calendar constants for date conversion from simulation seconds.
     static constexpr int HoursPerDay = 24;
     static constexpr int DaysPerSeason = 30;
     static constexpr int SeasonsPerYear = 4;
     static constexpr int DaysPerYear = DaysPerSeason * SeasonsPerYear;
+    static constexpr double CropExposureUpdateStepSec = 30.0;
+    static constexpr double CropChunkRebuildPeriodSec = 0.35;
 
     static int getSeasonStartDay(Season season);
     static int positiveMod(int value, int mod);
     void updateCalendarState();
+    // Ends the current run once Autumn day 1 is reached.
     void finishHarvestIfNeeded();
+    // Integrates pollution exposure for tracked crop blocks.
     void updateCropExposure(double simDtSec, bool updateChunkBuffers = true);
     void refreshCropExposureBuffers();
+    void rebuildOneCropChunk();
 
     yc::world::World* world = nullptr;
     Player* player = nullptr;
@@ -158,6 +168,10 @@ private:
     bool dayNightCycleEnabled = true;
     int lastAbsoluteDay = -1;
     int pendingCropRegistrationTicks = 0;
+    double cropExposureAccumulatorSec = 0.0;
+    double cropChunkRebuildAccumulatorSec = 0.0;
+    std::vector<glm::ivec2> cropChunkRebuildList;
+    size_t nextCropChunkRebuildIndex = 0;
     int farmingYear = 1;
     bool gameOver = false;
     HarvestResult harvestResult{};

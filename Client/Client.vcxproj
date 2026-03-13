@@ -74,12 +74,12 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(SolutionDir)build\bin\$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)build\bin\$(Configuration)\$(ProjectName)\</OutDir>
     <IntDir>$(SolutionDir)build\obj\$(ProjectName)\$(Configuration)\</IntDir>
     <IncludePath>$(SolutionDir)CoreLib\src;$(SolutionDir)CoreLib\src\third_party\GLAD\include;$(SolutionDir)CoreLib\src\third_party\glfw\include;$(SolutionDir)CoreLib\src\third_party\glm;$(SolutionDir)CoreLib\src\third_party\imgui;$(SolutionDir)CoreLib\src\third_party\lodepng;$(SolutionDir)CoreLib\src\third_party\websocketpp-0.8.2;$(SolutionDir)CoreLib\src\third_party\asio-1.12.1\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(SolutionDir)build\bin\$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)build\bin\$(Configuration)\$(ProjectName)\</OutDir>
     <IntDir>$(SolutionDir)build\obj\$(ProjectName)\$(Configuration)\</IntDir>
     <IncludePath>$(SolutionDir)CoreLib\src;$(SolutionDir)CoreLib\src\third_party\GLAD\include;$(SolutionDir)CoreLib\src\third_party\glfw\include;$(SolutionDir)CoreLib\src\third_party\glm;$(SolutionDir)CoreLib\src\third_party\imgui;$(SolutionDir)CoreLib\src\third_party\lodepng;$(SolutionDir)CoreLib\src\third_party\websocketpp-0.8.2;$(SolutionDir)CoreLib\src\third_party\asio-1.12.1\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
@@ -128,6 +128,10 @@
       <AdditionalLibraryDirectories>$(SolutionDir)CoreLib\src\third_party\glfw\lib-vc2022;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>glfw3.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>if not exist "$(OutDir)resources" mkdir "$(OutDir)resources"
+xcopy /E /I /Y /Q "$(SolutionDir)CoreLib\resources\*" "$(OutDir)resources\"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -146,6 +150,10 @@
       <AdditionalLibraryDirectories>$(SolutionDir)CoreLib\src\third_party\glfw\lib-vc2022;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>glfw3.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>if not exist "$(OutDir)resources" mkdir "$(OutDir)resources"
+xcopy /E /I /Y /Q "$(SolutionDir)CoreLib\resources\*" "$(OutDir)resources\"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\application.cpp" />
@@ -165,10 +173,6 @@
     <ClInclude Include="src\gui\save_select_scene.h" />
     <ClInclude Include="src\persistence.h" />
     <ClInclude Include="src\save_system.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\\CoreLib\\resources\\shaders\\smoke_volume.frag" />
-    <None Include="..\\CoreLib\\resources\\shaders\\smoke_volume.vert" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CoreLib\CoreLib.vcxproj">

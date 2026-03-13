@@ -85,7 +85,7 @@ float WorldGenerator::WeightedOctaves3(const FastNoiseLite& noise, float x, floa
 }
 
 WorldGenerator::WorldGenerator(int32_t seed)
-    : WorldGenerator(seed, MakeHilllyConfig()) { // Set NoiseConfig here
+    : WorldGenerator(seed, MakeHilllyConfig()) {
 }
 
 WorldGenerator::WorldGenerator(int32_t seed, const TerrainConfig& config)
@@ -122,6 +122,7 @@ BlockData WorldGenerator::getBlockData(int32_t height, int32_t maxHeight, float 
 }
 
 std::shared_ptr<Chunk> WorldGenerator::generateChunk(World* world, const glm::ivec2& chunkCoord) {
+    // Procedurally build terrain column-by-column, then add vegetation and water.
     const auto& tuning = config.tuning;
 
     auto chunk = std::make_shared<Chunk>();
@@ -200,7 +201,7 @@ void WorldGenerator::generateTreeAt(std::shared_ptr<Chunk> chunk, const glm::ive
     int32_t height = noise > 6 ? 6 : 4;
     int32_t leafHeight = noise > 6 ? 5 : 4;
 
-    // build leafs
+    // Build leaf canopy.
     for (int y = height - (leafHeight + 1) / 2; y <= height + leafHeight / 2; ++y) {
         for (int x = -1; x <= 1; ++x) {
             for (int z = -1; z <= 1; ++z) {
@@ -212,7 +213,7 @@ void WorldGenerator::generateTreeAt(std::shared_ptr<Chunk> chunk, const glm::ive
         }
     }
 
-    // build woods
+    // Build trunk.
     for (int i = 0; i < height; ++i) {
         chunk->setBlockData({ coord.x, coord.y + i, coord.z }, woodBlock);
     }
@@ -230,6 +231,7 @@ void WorldGenerator::generateTreeAt(World* world, const glm::ivec3& coord, float
 
 void WorldGenerator::generateChimneyAt(World* world, const glm::ivec3& coord, int height, int radius)
 {
+    // Fill a cylindrical volume with chimney blocks.
     for (int y = 0; y < height; ++y) {
         for (int x = -radius; x <= radius; ++x) {
             for (int z = -radius; z <= radius; ++z) {

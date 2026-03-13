@@ -16,13 +16,28 @@
 #include "graphic/skybox.h"
 #include "persistence.h"
 #include "gl/framebuffer.h"
+#include <filesystem>
+#include <Windows.h>
+
+namespace {
+    void SetWorkingDirectoryToExecutableFolder() {
+        char modulePath[MAX_PATH] = {};
+        const DWORD length = GetModuleFileNameA(nullptr, modulePath, MAX_PATH);
+        if (length == 0) {
+            return;
+        }
+
+        std::error_code ec;
+        std::filesystem::current_path(std::filesystem::path(modulePath).parent_path(), ec);
+    }
+}
 
 
 
 
 int main()
 {
-   
+    SetWorkingDirectoryToExecutableFolder();
 
     yc::Application app(1600, 800, "Voxel");
  

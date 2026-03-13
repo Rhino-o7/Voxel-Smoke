@@ -269,6 +269,7 @@ void World::enqueueJob(const std::function<void()>& job) {
 }
 
 void World::update(yc::Camera* camera) {
+    // Stream chunks around the camera and schedule background mesh work.
     const glm::vec3 cameraPos = camera->getPosition();
     const BlockPos cameraBlockCoord = getWorldtoBlockCoord(WorldPos{
         static_cast<double>(cameraPos.x),
@@ -446,6 +447,7 @@ void World::renderOpaque(Camera* camera) {
 
     visibleChunkCount = 0;
 
+    // Frustum culling avoids issuing draw calls for off-screen chunks.
     for (const auto& [coord, chunk]: this->chunks) {
         if (!IsChunkVisibleInFrustum(coord, frustum)) {
             continue;
@@ -561,7 +563,7 @@ WorldPos World::getBlockToWorldCoord(const BlockPos& blockCoord) {
     };
 }
 
-// no thread-safe
+// Not thread-safe. Call from the main thread.
 void World::reloadChunks() {
     std::cout << this->chunks.size() << '\n';
     double begin = glfwGetTime();
@@ -573,7 +575,7 @@ void World::reloadChunks() {
     std::cout << "Reloaded chunks in " << end - begin << " s\n";
 }
 
-// no thread-safe
+// Not thread-safe. Call from the main thread.
 std::shared_ptr<Chunk> World::getChunkIfLoadedAt(const glm::ivec2& coord) {
     auto iter = this->chunks.find(coord);
 
@@ -624,6 +626,7 @@ bool World::setBlockDataIfLoadedAt(const glm::ivec3& coord, const BlockData& blo
             util::PositiveMod(coord.z, Chunk::Width)
         }, blockData);
 
+        // Mark local and border-neighbor chunks dirty so exposed faces are rebuilt.
         chunk->prepareToBuildMesh();
 
         glm::ivec3 localCoord = { coord.x & 15, coord.y, coord.z & 15 };
@@ -695,6 +698,7 @@ World::RayCastResult World::raycastCheck(const glm::vec3& position, const glm::v
 
     float radius = 500.0/sqrt(dx*dx+dy*dy+dz*dz);
 
+    // 3D DDA traversal through voxel grid to find first solid hit.
     while (true) {
         yc::world::BlockData block = getBlockDataIfLoadedAt({ x, y, z });
         yc::world::BlockType blockType = block.getType();

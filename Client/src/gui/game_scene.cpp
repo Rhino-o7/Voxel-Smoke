@@ -60,12 +60,6 @@ void GameScene::render() {
         ImVec2 uv0(0.0f, 0.0f);
         ImVec2 uv1(1.0f, 1.0f);
 
-        if (blockType == yc::world::BlockType::CHIMNEY) {
-            id = Resource::GameTexure.getId();
-            uv0 = ImVec2(14.0f / 16.0f, 0.0f / 16.0f);
-            uv1 = ImVec2(15.0f / 16.0f, 1.0f / 16.0f);
-        }
-
         if (slot == player->getCurrentSlot()) {
             ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.72f, 0.72f, 0.72f, 1));
             ImGui::SetNextWindowBgAlpha(0.3);

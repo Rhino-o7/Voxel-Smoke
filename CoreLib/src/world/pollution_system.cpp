@@ -5,6 +5,7 @@
 namespace yc::world {
 
     double PollutionSystem::concentrationAt(const glm::dvec3& p) const {
+        // Gaussian plume approximation in wind-aligned coordinates.
         const double windSpeed = windState.speed;
         if (windSpeed <= 1e-6) return 0.0;
 

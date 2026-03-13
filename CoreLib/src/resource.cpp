@@ -1,7 +1,34 @@
 #include "resource.h"
 #include <stb_image.h>
+#include <filesystem>
+#include <vector>
 
 namespace yc {
+
+namespace {
+    std::string ResolveResourcePath(const std::string& relativePath) {
+        namespace fs = std::filesystem;
+
+        const std::vector<fs::path> resourceRoots = {
+            fs::path("../CoreLib/resources"),
+            fs::path("CoreLib/resources"),
+            fs::path("resources"),
+            fs::path("../resources"),
+            fs::path("../../resources")
+        };
+
+        for (const auto& root : resourceRoots) {
+            // Try multiple runtime layouts (IDE, packaged, or sibling project launches).
+            const auto candidate = root / relativePath;
+            std::error_code ec;
+            if (fs::exists(candidate, ec)) {
+                return candidate.string();
+            }
+        }
+
+        return (fs::path("../CoreLib/resources") / relativePath).string();
+    }
+}
 
 yc::gl::Shader Resource::OpaqueShader;
 yc::gl::Shader Resource::TransparentShader;
@@ -25,6 +52,8 @@ std::map<yc::world::BlockType, yc::gl::Texture> Resource::BlockIcons;
 
 void Resource::Load() {
 
+    // Compile/link all shader programs used by rendering passes.
+
     Resource::OpaqueShader.loadFromFile("opaque.vert", "opaque.frag");
     Resource::TransparentShader.loadFromFile("transparent.vert", "transparent.frag");
     Resource::FloraShader.loadFromFile("flora.vert", "flora.frag");
@@ -37,32 +66,32 @@ void Resource::Load() {
     
 
     stbi_set_flip_vertically_on_load(true);
-    Resource::GameTexure.loadFromFile("../CoreLib/resources/texture.png");
-    Resource::CrossHairTexture.loadFromFile("../CoreLib/resources/crosshair.png");
+    // 2D sprite/UI textures are authored top-left origin, so flip when needed.
+    Resource::GameTexure.loadFromFile(ResolveResourcePath("texture.png"));
+    Resource::CrossHairTexture.loadFromFile(ResolveResourcePath("crosshair.png"));
     stbi_set_flip_vertically_on_load(false);
 
-    Resource::ResumeButtonTexture.loadFromFile("../CoreLib/resources/gui/resume_button.png");
-    Resource::HoveredResumeButtonTexture.loadFromFile("../CoreLib/resources/gui/hovered_resume_button.png");
-    Resource::BackButtonTexture.loadFromFile("../CoreLib/resources/gui/back_button.png");
-    Resource::HoveredBackButtonTexture.loadFromFile("../CoreLib/resources/gui/hovered_back_button.png");
+    Resource::ResumeButtonTexture.loadFromFile(ResolveResourcePath("gui/resume_button.png"));
+    Resource::HoveredResumeButtonTexture.loadFromFile(ResolveResourcePath("gui/hovered_resume_button.png"));
+    Resource::BackButtonTexture.loadFromFile(ResolveResourcePath("gui/back_button.png"));
+    Resource::HoveredBackButtonTexture.loadFromFile(ResolveResourcePath("gui/hovered_back_button.png"));
 
-    Resource::BlockIcons[world::BlockType::GRASS_BLOCK].loadFromFile("../CoreLib/resources/icons/grass_block.png");
-    Resource::BlockIcons[world::BlockType::DIRT].loadFromFile("../CoreLib/resources/icons/dirt.png");
-    Resource::BlockIcons[world::BlockType::GLASS].loadFromFile("../CoreLib/resources/icons/glass.png");
-    Resource::BlockIcons[world::BlockType::STONE].loadFromFile("../CoreLib/resources/icons/stone.png");
-    Resource::BlockIcons[world::BlockType::SNOW].loadFromFile("../CoreLib/resources/icons/snow.png");
-    Resource::BlockIcons[world::BlockType::SAND].loadFromFile("../CoreLib/resources/icons/sand.png");
-    Resource::BlockIcons[world::BlockType::WOOD].loadFromFile("../CoreLib/resources/icons/wood.png");
-    Resource::BlockIcons[world::BlockType::LEAF].loadFromFile("../CoreLib/resources/icons/leaf.png");
-    Resource::BlockIcons[world::BlockType::RED_FLOWER].loadFromFile("../CoreLib/resources/icons/red_flower.png");
-    Resource::BlockIcons[world::BlockType::BLUE_FLOWER].loadFromFile("../CoreLib/resources/icons/blue_flower.png");
-    Resource::BlockIcons[world::BlockType::YELLOW_FLOWER].loadFromFile("../CoreLib/resources/icons/yellow_flower.png");
-    Resource::BlockIcons[world::BlockType::GRASS].loadFromFile("../CoreLib/resources/icons/grass.png");
-    Resource::BlockIcons[world::BlockType::WATER].loadFromFile("../CoreLib/resources/icons/water.png");
-    Resource::BlockIcons[world::BlockType::CROP].loadFromFile("../CoreLib/resources/icons/grass.png");
+    Resource::BlockIcons[world::BlockType::GRASS_BLOCK].loadFromFile(ResolveResourcePath("icons/grass_block.png"));
+    Resource::BlockIcons[world::BlockType::DIRT].loadFromFile(ResolveResourcePath("icons/dirt.png"));
+    Resource::BlockIcons[world::BlockType::GLASS].loadFromFile(ResolveResourcePath("icons/glass.png"));
+    Resource::BlockIcons[world::BlockType::STONE].loadFromFile(ResolveResourcePath("icons/stone.png"));
+    Resource::BlockIcons[world::BlockType::SNOW].loadFromFile(ResolveResourcePath("icons/snow.png"));
+    Resource::BlockIcons[world::BlockType::SAND].loadFromFile(ResolveResourcePath("icons/sand.png"));
+    Resource::BlockIcons[world::BlockType::WOOD].loadFromFile(ResolveResourcePath("icons/wood.png"));
+    Resource::BlockIcons[world::BlockType::LEAF].loadFromFile(ResolveResourcePath("icons/leaf.png"));
+    Resource::BlockIcons[world::BlockType::RED_FLOWER].loadFromFile(ResolveResourcePath("icons/red_flower.png"));
+    Resource::BlockIcons[world::BlockType::BLUE_FLOWER].loadFromFile(ResolveResourcePath("icons/blue_flower.png"));
+    Resource::BlockIcons[world::BlockType::YELLOW_FLOWER].loadFromFile(ResolveResourcePath("icons/yellow_flower.png"));
+    Resource::BlockIcons[world::BlockType::GRASS].loadFromFile(ResolveResourcePath("icons/grass.png"));
+    Resource::BlockIcons[world::BlockType::WATER].loadFromFile(ResolveResourcePath("icons/water.png"));
+    Resource::BlockIcons[world::BlockType::CROP].loadFromFile(ResolveResourcePath("icons/grass.png"));
 
-    //temp
-	Resource::BlockIcons[world::BlockType::CHIMNEY].loadFromFile("../CoreLib/resources/icons/stone.png");
+    Resource::BlockIcons[world::BlockType::CHIMNEY].loadFromFile(ResolveResourcePath("chimney.png"));
 }
 
 }

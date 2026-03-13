@@ -1,5 +1,6 @@
 #include <iostream>
 #include <algorithm>
+#include <filesystem>
 #include <stb_image.h>
 
 #include "application.h"
@@ -12,6 +13,30 @@
 #include "persistence.h"
 
 namespace yc {
+
+    namespace {
+        std::string ResolveResourcePath(const std::string& relativePath) {
+            namespace fs = std::filesystem;
+
+            const std::vector<fs::path> resourceRoots = {
+                fs::path("../CoreLib/resources"),
+                fs::path("CoreLib/resources"),
+                fs::path("resources"),
+                fs::path("../resources"),
+                fs::path("../../resources")
+            };
+
+            for (const auto& root : resourceRoots) {
+                const auto candidate = root / relativePath;
+                std::error_code ec;
+                if (fs::exists(candidate, ec)) {
+                    return candidate.string();
+                }
+            }
+
+            return (fs::path("../CoreLib/resources") / relativePath).string();
+        }
+    }
 
     void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
     void mouseCallback(GLFWwindow* window, double xpos, double ypos);
@@ -84,14 +109,16 @@ namespace yc {
         // set icon
         int iconWidth, iconHeight, iconChannel;
 
-        uint8_t* iconData = stbi_load("../CoreLib/resources/yourcraft.png", &iconWidth, &iconHeight, &iconChannel, STBI_default);
+        uint8_t* iconData = stbi_load(ResolveResourcePath("chimney.png").c_str(), &iconWidth, &iconHeight, &iconChannel, STBI_default);
+        if (iconData) {
+            GLFWimage icons;
+            icons.width = iconWidth;
+            icons.height = iconHeight;
+            icons.pixels = iconData;
 
-        GLFWimage icons;
-        icons.width = iconWidth;
-        icons.height = iconHeight;
-        icons.pixels = iconData;
-
-        glfwSetWindowIcon(window, 1, &icons);
+            glfwSetWindowIcon(window, 1, &icons);
+            stbi_image_free(iconData);
+        }
     }
 
     void Application::process() {

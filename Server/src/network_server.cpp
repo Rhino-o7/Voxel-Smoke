@@ -31,7 +31,16 @@ bool NetworkServer::start() {
     server.set_reuse_addr(true);
 
     server.set_message_handler([this](websocketpp::connection_hdl hdl, Server::message_ptr msg) {
-        const std::string response = handleRequest(msg->get_payload());
+        const std::string request = msg->get_payload();
+        const auto requestParts = split(request, '|');
+        const std::string requestCommand = requestParts.empty() ? "UNKNOWN" : requestParts[0];
+        std::cout << "Received: cmd=" << requestCommand << ", bytes=" << request.size() << std::endl;
+
+        const std::string response = handleRequest(request);
+        const auto responseParts = split(response, '|');
+        const std::string responseStatus = responseParts.empty() ? "UNKNOWN" : responseParts[0];
+        std::cout << "Sent: status=" << responseStatus << ", bytes=" << response.size() << std::endl;
+
         websocketpp::lib::error_code ec;
         server.send(hdl, response, websocketpp::frame::opcode::text, ec);
     });

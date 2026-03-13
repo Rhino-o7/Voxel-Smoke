@@ -24,6 +24,7 @@ Display::Display():
 {}
 
 void Display::init() {
+    // Initialize scene helpers and allocate framebuffer resources for multi-pass rendering.
     crosshair.init();
     skybox.init();
     blockOutline.init();
@@ -116,7 +117,7 @@ void Display::drawFrame(yc::Player* player, yc::world::World* world) {
         glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
     }
 
-    // render into frame
+    // Pass 1: render opaque scene into opaque framebuffer (color + shared depth).
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -133,7 +134,7 @@ void Display::drawFrame(yc::Player* player, yc::world::World* world) {
     glDepthFunc(GL_LESS);
 	glDepthMask(GL_TRUE);
 
-    // render opaque
+    // Opaque geometry writes depth normally.
     world->renderOpaque(player->getCamera());
     world->renderFlora(player->getCamera());
 
@@ -143,7 +144,7 @@ void Display::drawFrame(yc::Player* player, yc::world::World* world) {
         world->getSmokeSettings(),
         world->getSimTimeSec());
 
-    // render transparent
+    // Pass 2: weighted blended OIT targets for transparent geometry.
     glDepthMask(GL_FALSE);
     glEnable(GL_BLEND);
     glBlendEquation(GL_FUNC_ADD);
@@ -171,7 +172,7 @@ void Display::drawFrame(yc::Player* player, yc::world::World* world) {
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
-    // draw to backbuffer (final pass)
+    // Pass 3: composite transparent targets into opaque texture, then present to backbuffer.
 	// -----
 
 	// set render states

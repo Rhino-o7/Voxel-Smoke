@@ -19,7 +19,6 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <None Include="CoreLib.vcxproj" />
     <None Include="resources\shaders\smoke_volume.frag" />
     <None Include="resources\shaders\smoke_volume.vert" />
     <None Include="src\third_party\glm\doc\api\a00001_source.html" />

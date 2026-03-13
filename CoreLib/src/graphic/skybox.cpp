@@ -53,6 +53,7 @@ const float SkyBox::Vertices[] = {
 SkyBox::SkyBox() {}
 
 void SkyBox::init() {
+    // Upload static cube vertices; shader procedurally shades sky from daylight factor.
     glGenVertexArrays(1, &this->vao);
     glBindVertexArray(this->vao);
 
@@ -91,6 +92,7 @@ void SkyBox::init() {
 }
 
 void SkyBox::render(yc::Camera* camera, float daylight) {
+    // Remove camera translation so skybox appears infinitely far away.
     glDepthFunc(GL_LEQUAL);
 
     yc::Resource::SkyBoxShader.use();

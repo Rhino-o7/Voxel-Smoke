@@ -55,6 +55,7 @@ const std::array<std::array<BlockVertex, 4>, 6> BlockVertex::Vertices = {{
 }};
 
 const std::array<BlockVertex, 4>& BlockVertex::GetVerticesFromDirection(const glm::ivec3& direction) {
+    // Return the face template (4 packed vertices) for a cardinal normal.
     assert(abs(direction.x) + abs(direction.y) + abs(direction.z) == 1);
 
     if (direction.x == +1) { // right
@@ -94,6 +95,7 @@ uint32_t BlockVertex::getData() const {
 }
 
 void BlockVertex::setBlockType(yc::world::BlockType blockType, const glm::ivec3& faceDirection) {
+    // Pack face index and atlas tile selection into this vertex's bitfield.
     uint32_t faceIndex = 0;
     if (faceDirection.x == +1) {
         faceIndex = 2;

@@ -76,6 +76,7 @@ const uint32_t BlockOutline::Indices[] = {
 BlockOutline::BlockOutline() {}
 
 void BlockOutline::init() {
+    // Static cube mesh used to highlight the currently selected block.
     this->mesh.init();
     this->mesh.bind();
     this->mesh.addIndices(&Indices[0], sizeof(Indices)/sizeof(float));
@@ -85,6 +86,7 @@ void BlockOutline::init() {
 }
 
 void BlockOutline::render(yc::Camera* camera, const glm::ivec3& coord) {
+    // Place unit-cube outline at target block coordinate.
     yc::Resource::BlockOutlineShader.use();
     yc::Resource::BlockOutlineShader.setMat4("projection_view", camera->getProjectionViewMatrix());
     yc::Resource::BlockOutlineShader.setMat4("model",

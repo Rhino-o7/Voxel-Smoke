@@ -3,20 +3,16 @@
 #include <fstream>
 #include <vector>
 #include <algorithm>
-#include <cmath>
 
 namespace yc {
 
 namespace fs = std::filesystem;
 
 namespace {
-    constexpr uint32_t SaveMagic = 0x56534359; // "YCSV"
-    constexpr uint32_t SaveVersion = 11;
-
-    struct SaveHeader {
-        uint32_t magic = SaveMagic;
-        uint32_t version = SaveVersion;
-    };
+    // Binary save format marker/version and basic payload guardrails.
+    constexpr uint32_t kSaveMagic = 0x56435359;
+    constexpr uint32_t kSaveVersion = 4;
+    constexpr uint32_t kMaxStringLength = 64 * 1024;
 
     bool WriteBytes(std::ofstream& out, const void* data, size_t size) {
         out.write(reinterpret_cast<const char*>(data), static_cast<std::streamsize>(size));
@@ -44,6 +40,10 @@ namespace {
     bool ReadInt(std::ifstream& in, int& value) { return ReadBytes(in, &value, sizeof(value)); }
 
     bool WriteString(std::ofstream& out, const std::string& value) {
+        if (value.size() > kMaxStringLength) {
+            return false;
+        }
+
         const auto length = static_cast<uint32_t>(value.size());
         if (!WriteU32(out, length)) {
             return false;
@@ -62,12 +62,41 @@ namespace {
             return false;
         }
 
+        if (length > kMaxStringLength) {
+            return false;
+        }
+
         value.resize(length);
         if (length == 0) {
             return true;
         }
 
         return ReadBytes(in, value.data(), length);
+    }
+
+    bool WriteFormatHeader(std::ofstream& out) {
+        return WriteU32(out, kSaveMagic) && WriteU32(out, kSaveVersion);
+    }
+
+    // Accept both current header-based saves and legacy saves without a header.
+    bool PrepareReadStream(std::ifstream& in) {
+        uint32_t magicOrFirstField = 0;
+        if (!ReadU32(in, magicOrFirstField)) {
+            return false;
+        }
+
+        if (magicOrFirstField != kSaveMagic) {
+            in.clear();
+            in.seekg(0, std::ios::beg);
+            return in.good();
+        }
+
+        uint32_t version = 0;
+        if (!ReadU32(in, version)) {
+            return false;
+        }
+
+        return version == kSaveVersion;
     }
 }
 
@@ -153,9 +182,10 @@ bool SaveSystem::saveGame(const Settings& settings, const GameManager& gameManag
         return false;
     }
 
-    SaveHeader header{};
-    if (!WriteBytes(out, &header, sizeof(header))) return false;
+    // File format header.
+    if (!WriteFormatHeader(out)) return false;
 
+    // World baseline settings and seed.
     const auto& ws = world.getSettings();
     if (!WriteInt(out, ws.viewDistance)) return false;
     if (!WriteInt(out, ws.maxUnloadChunkPerFrame)) return false;
@@ -169,6 +199,7 @@ bool SaveSystem::saveGame(const Settings& settings, const GameManager& gameManag
     const uint8_t running = gameManager.isSimulationRunning() ? 1 : 0;
     if (!WriteU8(out, running)) return false;
 
+    // Runtime/gameplay tuning values.
     if (!WriteFloat(out, gameManager.getTemperatureC())) return false;
     if (!WriteFloat(out, world.getExposureScale())) return false;
     if (!WriteFloat(out, settings.ui.scale)) return false;
@@ -199,6 +230,8 @@ bool SaveSystem::saveGame(const Settings& settings, const GameManager& gameManag
     if (!WriteFloat(out, settings.smoke.boxVertical)) return false;
     if (!WriteU8(out, settings.game.startSimulationRunning ? 1 : 0)) return false;
     if (!WriteString(out, settings.game.windCsvPath)) return false;
+
+    // Lighting settings.
     if (!WriteFloat(out, settings.lighting.sunDirectionX)) return false;
     if (!WriteFloat(out, settings.lighting.sunDirectionY)) return false;
     if (!WriteFloat(out, settings.lighting.sunDirectionZ)) return false;
@@ -222,6 +255,7 @@ bool SaveSystem::saveGame(const Settings& settings, const GameManager& gameManag
     if (!WriteU8(out, gameManager.isDayNightCycleEnabled() ? 1 : 0)) return false;
     if (!WriteInt(out, gameManager.getFarmingYear())) return false;
 
+    // Calendar/time-of-day.
     const auto date = gameManager.getDate();
     const auto tod = gameManager.getTimeOfDay();
     if (!WriteInt(out, static_cast<int>(date.season))) return false;
@@ -230,6 +264,7 @@ bool SaveSystem::saveGame(const Settings& settings, const GameManager& gameManag
     const auto& chimneys = world.getChimneyEmitters();
     if (!WriteU32(out, static_cast<uint32_t>(chimneys.size()))) return false;
 
+    // Dynamic chimney emitters.
     for (const auto& c : chimneys) {
         if (!WriteDouble(out, c.worldPos.x)) return false;
         if (!WriteDouble(out, c.worldPos.y)) return false;
@@ -246,6 +281,7 @@ bool SaveSystem::saveGame(const Settings& settings, const GameManager& gameManag
     const auto& cropExposure = gameManager.getCropExposureByBlock();
     if (!WriteU32(out, static_cast<uint32_t>(cropExposure.size()))) return false;
 
+    // Crop exposure map.
     for (const auto& [pos, exposure] : cropExposure) {
         if (!WriteInt(out, pos.x)) return false;
         if (!WriteInt(out, pos.y)) return false;
@@ -267,24 +303,19 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
         return false;
     }
 
-    SaveHeader header{};
-    if (!ReadBytes(in, &header, sizeof(header))) return false;
-    if (header.magic != SaveMagic || header.version == 0 || header.version > SaveVersion) return false;
+    // Handles both new (headered) and older legacy saves.
+    if (!PrepareReadStream(in)) return false;
 
     Settings::WorldSettings ws{};
     if (!ReadInt(in, ws.viewDistance)) return false;
     if (!ReadInt(in, ws.maxUnloadChunkPerFrame)) return false;
     if (!ReadInt(in, ws.maxChunksLoadPerFrame)) return false;
-    if (header.version >= 10) {
-        uint8_t wireframeMode = 0;
-        if (!ReadU8(in, wireframeMode)) return false;
-        ws.wireframeMode = (wireframeMode != 0);
-    }
+    uint8_t wireframeMode = 0;
+    if (!ReadU8(in, wireframeMode)) return false;
+    ws.wireframeMode = (wireframeMode != 0);
 
     int worldSeed = 0;
-    if (header.version >= 6) {
-        if (!ReadInt(in, worldSeed)) return false;
-    }
+    if (!ReadInt(in, worldSeed)) return false;
 
     double simTimeSec = 0.0;
     double timeScale = 1.0;
@@ -326,80 +357,69 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
     std::string windCsvPath = settings.game.windCsvPath;
     if (!ReadFloat(in, temperatureC)) return false;
     if (!ReadFloat(in, exposureScale)) return false;
-    if (header.version >= 7) {
-        if (!ReadFloat(in, uiScale)) return false;
-    }
-    if (header.version >= 8) {
-        if (!ReadFloat(in, moveSpeed)) return false;
-        if (!ReadFloat(in, gravityMultiplier)) return false;
-        if (!ReadFloat(in, jumpHeight)) return false;
-    }
-    if (header.version >= 11) {
-        if (!ReadFloat(in, fovDeg)) return false;
-        if (!ReadInt(in, chimneyHeight)) return false;
-        if (!ReadInt(in, chimneyRadius)) return false;
-        if (!ReadDouble(in, chimneyExitVelocity)) return false;
-        if (!ReadInt(in, smokeStepCount)) return false;
-        if (!ReadFloat(in, smokeDensityScale)) return false;
-        if (!ReadFloat(in, smokeColorR)) return false;
-        if (!ReadFloat(in, smokeColorG)) return false;
-        if (!ReadFloat(in, smokeColorB)) return false;
-        if (!ReadFloat(in, smokeVoxelSize)) return false;
-        if (!ReadFloat(in, smokeVoxelThreshold)) return false;
-        if (!ReadFloat(in, smokeDissipationHalfLifeSec)) return false;
-        if (!ReadFloat(in, smokeMaxRenderDistance)) return false;
-        if (!ReadFloat(in, smokeWindSmoothingSec)) return false;
-        if (!ReadFloat(in, smokeWindTransitionSec)) return false;
-        if (!ReadFloat(in, smokeWindSpeedVariation)) return false;
-        if (!ReadFloat(in, smokeWindDirVariationDeg)) return false;
-        if (!ReadFloat(in, smokeWindVariationScale)) return false;
-        if (!ReadFloat(in, smokeDownwindFade)) return false;
-        if (!ReadFloat(in, smokeBoxDownwind)) return false;
-        if (!ReadFloat(in, smokeBoxCrosswind)) return false;
-        if (!ReadFloat(in, smokeBoxVertical)) return false;
+    if (!ReadFloat(in, uiScale)) return false;
+    if (!ReadFloat(in, moveSpeed)) return false;
+    if (!ReadFloat(in, gravityMultiplier)) return false;
+    if (!ReadFloat(in, jumpHeight)) return false;
+    if (!ReadFloat(in, fovDeg)) return false;
+    if (!ReadInt(in, chimneyHeight)) return false;
+    if (!ReadInt(in, chimneyRadius)) return false;
+    if (!ReadDouble(in, chimneyExitVelocity)) return false;
+    if (!ReadInt(in, smokeStepCount)) return false;
+    if (!ReadFloat(in, smokeDensityScale)) return false;
+    if (!ReadFloat(in, smokeColorR)) return false;
+    if (!ReadFloat(in, smokeColorG)) return false;
+    if (!ReadFloat(in, smokeColorB)) return false;
+    if (!ReadFloat(in, smokeVoxelSize)) return false;
+    if (!ReadFloat(in, smokeVoxelThreshold)) return false;
+    if (!ReadFloat(in, smokeDissipationHalfLifeSec)) return false;
+    if (!ReadFloat(in, smokeMaxRenderDistance)) return false;
+    if (!ReadFloat(in, smokeWindSmoothingSec)) return false;
+    if (!ReadFloat(in, smokeWindTransitionSec)) return false;
+    if (!ReadFloat(in, smokeWindSpeedVariation)) return false;
+    if (!ReadFloat(in, smokeWindDirVariationDeg)) return false;
+    if (!ReadFloat(in, smokeWindVariationScale)) return false;
+    if (!ReadFloat(in, smokeDownwindFade)) return false;
+    if (!ReadFloat(in, smokeBoxDownwind)) return false;
+    if (!ReadFloat(in, smokeBoxCrosswind)) return false;
+    if (!ReadFloat(in, smokeBoxVertical)) return false;
 
-        uint8_t startSimulation = 0;
-        if (!ReadU8(in, startSimulation)) return false;
-        startSimulationRunning = (startSimulation != 0);
-        if (!ReadString(in, windCsvPath)) return false;
-    }
-    if (header.version >= 9) {
-        if (!ReadFloat(in, settings.lighting.sunDirectionX)) return false;
-        if (!ReadFloat(in, settings.lighting.sunDirectionY)) return false;
-        if (!ReadFloat(in, settings.lighting.sunDirectionZ)) return false;
-        if (!ReadFloat(in, settings.lighting.sunriseStartHour)) return false;
-        if (!ReadFloat(in, settings.lighting.dayStartHour)) return false;
-        if (!ReadFloat(in, settings.lighting.dayEndHour)) return false;
-        if (!ReadFloat(in, settings.lighting.nightStartHour)) return false;
-        if (!ReadFloat(in, settings.lighting.ambientNight)) return false;
-        if (!ReadFloat(in, settings.lighting.ambientDay)) return false;
-        if (!ReadFloat(in, settings.lighting.diffuseNight)) return false;
-        if (!ReadFloat(in, settings.lighting.diffuseDay)) return false;
-        if (!ReadFloat(in, settings.lighting.specularNight)) return false;
-        if (!ReadFloat(in, settings.lighting.specularDay)) return false;
-        if (!ReadFloat(in, settings.lighting.shininess)) return false;
-        if (!ReadFloat(in, settings.lighting.waterTintR)) return false;
-        if (!ReadFloat(in, settings.lighting.waterTintG)) return false;
-        if (!ReadFloat(in, settings.lighting.waterTintB)) return false;
-        if (!ReadFloat(in, settings.lighting.waterDiffuseMul)) return false;
-        if (!ReadFloat(in, settings.lighting.waterSpecularMul)) return false;
-        if (!ReadFloat(in, settings.lighting.waterMinAlpha)) return false;
-    }
+    uint8_t startSimulation = 0;
+    if (!ReadU8(in, startSimulation)) return false;
+    startSimulationRunning = (startSimulation != 0);
+    if (!ReadString(in, windCsvPath)) return false;
+
+    if (!ReadFloat(in, settings.lighting.sunDirectionX)) return false;
+    if (!ReadFloat(in, settings.lighting.sunDirectionY)) return false;
+    if (!ReadFloat(in, settings.lighting.sunDirectionZ)) return false;
+    if (!ReadFloat(in, settings.lighting.sunriseStartHour)) return false;
+    if (!ReadFloat(in, settings.lighting.dayStartHour)) return false;
+    if (!ReadFloat(in, settings.lighting.dayEndHour)) return false;
+    if (!ReadFloat(in, settings.lighting.nightStartHour)) return false;
+    if (!ReadFloat(in, settings.lighting.ambientNight)) return false;
+    if (!ReadFloat(in, settings.lighting.ambientDay)) return false;
+    if (!ReadFloat(in, settings.lighting.diffuseNight)) return false;
+    if (!ReadFloat(in, settings.lighting.diffuseDay)) return false;
+    if (!ReadFloat(in, settings.lighting.specularNight)) return false;
+    if (!ReadFloat(in, settings.lighting.specularDay)) return false;
+    if (!ReadFloat(in, settings.lighting.shininess)) return false;
+    if (!ReadFloat(in, settings.lighting.waterTintR)) return false;
+    if (!ReadFloat(in, settings.lighting.waterTintG)) return false;
+    if (!ReadFloat(in, settings.lighting.waterTintB)) return false;
+    if (!ReadFloat(in, settings.lighting.waterDiffuseMul)) return false;
+    if (!ReadFloat(in, settings.lighting.waterSpecularMul)) return false;
+    if (!ReadFloat(in, settings.lighting.waterMinAlpha)) return false;
 
     bool dayNightCycleEnabled = true;
     int farmingYear = 1;
     int currentSeason = 0;
     int startHour = 8;
-    if (header.version >= 4) {
-        uint8_t dayNightCycle = 1;
-        if (!ReadU8(in, dayNightCycle)) return false;
-        dayNightCycleEnabled = (dayNightCycle != 0);
-        if (header.version >= 5) {
-            if (!ReadInt(in, farmingYear)) return false;
-        }
-        if (!ReadInt(in, currentSeason)) return false;
-        if (!ReadInt(in, startHour)) return false;
-    }
+    uint8_t dayNightCycle = 1;
+    if (!ReadU8(in, dayNightCycle)) return false;
+    dayNightCycleEnabled = (dayNightCycle != 0);
+    if (!ReadInt(in, farmingYear)) return false;
+    if (!ReadInt(in, currentSeason)) return false;
+    if (!ReadInt(in, startHour)) return false;
 
     uint32_t chimneyCount = 0;
     if (!ReadU32(in, chimneyCount)) return false;
@@ -412,44 +432,30 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
         if (!ReadDouble(in, c.worldPos.x)) return false;
         if (!ReadDouble(in, c.worldPos.y)) return false;
         if (!ReadDouble(in, c.worldPos.z)) return false;
-        if (header.version >= 3) {
-            if (!ReadInt(in, c.baseBlockCoord.x)) return false;
-            if (!ReadInt(in, c.baseBlockCoord.y)) return false;
-            if (!ReadInt(in, c.baseBlockCoord.z)) return false;
-        } else {
-            c.baseBlockCoord = {
-                static_cast<int>(std::floor(c.worldPos.x)),
-                static_cast<int>(std::floor(c.worldPos.y)),
-                static_cast<int>(std::floor(c.worldPos.z))
-            };
-        }
+        if (!ReadInt(in, c.baseBlockCoord.x)) return false;
+        if (!ReadInt(in, c.baseBlockCoord.y)) return false;
+        if (!ReadInt(in, c.baseBlockCoord.z)) return false;
         if (!ReadDouble(in, c.height)) return false;
         if (!ReadDouble(in, c.exitVelocity)) return false;
         if (!ReadDouble(in, c.radius)) return false;
-        if (header.version >= 3) {
-            uint8_t enabled = 1;
-            if (!ReadU8(in, enabled)) return false;
-            c.enabled = (enabled != 0);
-        } else {
-            c.enabled = true;
-        }
+        uint8_t enabled = 1;
+        if (!ReadU8(in, enabled)) return false;
+        c.enabled = (enabled != 0);
         chimneys.push_back(c);
     }
 
     yc::world::CropExposureMap cropExposure;
-    if (header.version >= 2) {
-        uint32_t cropCount = 0;
-        if (!ReadU32(in, cropCount)) return false;
+    uint32_t cropCount = 0;
+    if (!ReadU32(in, cropCount)) return false;
 
-        for (uint32_t i = 0; i < cropCount; ++i) {
-            int x = 0, y = 0, z = 0;
-            double exposure = 0.0;
-            if (!ReadInt(in, x)) return false;
-            if (!ReadInt(in, y)) return false;
-            if (!ReadInt(in, z)) return false;
-            if (!ReadDouble(in, exposure)) return false;
-            cropExposure[{ x, y, z }] = exposure;
-        }
+    for (uint32_t i = 0; i < cropCount; ++i) {
+        int x = 0, y = 0, z = 0;
+        double exposure = 0.0;
+        if (!ReadInt(in, x)) return false;
+        if (!ReadInt(in, y)) return false;
+        if (!ReadInt(in, z)) return false;
+        if (!ReadDouble(in, exposure)) return false;
+        cropExposure[{ x, y, z }] = exposure;
     }
 
     settings.world = ws;
@@ -483,7 +489,7 @@ bool SaveSystem::loadGame(Settings& settings, GameManager& gameManager, yc::worl
     settings.smoke.boxCrosswind = std::clamp(smokeBoxCrosswind, 5.0f, 500.0f);
     settings.smoke.boxVertical = std::clamp(smokeBoxVertical, 5.0f, 500.0f);
     settings.game.startSimulationRunning = startSimulationRunning;
-    settings.game.windCsvPath = windCsvPath.empty() ? settings.game.windCsvPath : windCsvPath;
+    settings.game.windCsvPath = windCsvPath;
     settings.game.dayNightCycleEnabled = dayNightCycleEnabled;
     settings.game.currentSeason = std::clamp(currentSeason, 0, 3);
     settings.game.startHour = std::clamp(startHour, 0, 23);

@@ -8,6 +8,7 @@ namespace yc {
 Camera::Camera() {}
 
 void Camera::init() {
+    // Start from a neutral orientation at world origin.
     m_pitch = 0;
     m_yaw = 0;
     m_position = glm::vec3(0);
@@ -23,6 +24,7 @@ void Camera::setFovDeg(float value) {
 }
 
 void Camera::update() {
+    // Keep projection matrix aligned with current viewport aspect ratio.
     float screenRatio = 1.0f * yc::runtime_state::GetViewportWidth() / yc::runtime_state::GetViewportHeight();
     m_projectionMatrix = glm::perspective(glm::radians(m_fovDeg), screenRatio, 0.1f, 1000.0f);
 }
@@ -69,6 +71,7 @@ glm::vec3 Camera::getDirection() const {
 }
 
 void Camera::setOrientation(float pitch, float yaw) {
+    // Clamp pitch to avoid gimbal singularities at straight up/down.
     pitch = std::max(pitch, -89.0f);
     pitch = std::min(pitch, +89.0f);
 
@@ -80,6 +83,7 @@ void Camera::setOrientation(float pitch, float yaw) {
 }
 
 void Camera::updateDirection() {
+    // Convert Euler angles to a normalized forward direction.
     float rpitch = glm::radians(m_pitch);
     float ryaw = glm::radians(m_yaw);
 
@@ -98,6 +102,7 @@ void Camera::updateOrientation() {
 }
 
 void Camera::updateMatrix() {
+    // Cache view and combined projection-view matrices for render code.
     m_viewMatrix = glm::lookAt(m_position, m_position + m_direction, VectorUp);
     m_projectionViewMatrix = m_projectionMatrix * m_viewMatrix;
 }
